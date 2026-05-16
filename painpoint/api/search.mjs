@@ -50,9 +50,9 @@ function buildCombinedPPData(keyword, redditPosts, naverPosts, youtubePosts = []
   const ppData = {
     trendingKeywords: [{ kw: keyword, delta: "실시간", category: "Reddit+Naver" }],
     sources: [
-      { id: "reddit",  name: "레딧",   desc: `Reddit: "${keyword}"`,   posts: redditPosts.length,  defaultOn: true, free: true },
-      { id: "naver",   name: "네이버", desc: `Naver: "${keyword}"`,    posts: naverPosts.length,   defaultOn: true, free: true },
-      { id: "youtube", name: "유튜브", desc: `YouTube: "${keyword}"`,  posts: youtubePosts.length, defaultOn: true, free: true },
+      { id: "reddit",  name: "레딧",      desc: `Reddit: "${keyword}"`,   posts: redditPosts.length,  defaultOn: true, live: true, free: true },
+      { id: "naver",   name: "네이버",    desc: `Naver: "${keyword}"`,    posts: naverPosts.length,   defaultOn: true, live: true, free: true },
+      { id: "youtube", name: "유튜브 댓글", desc: `YouTube: "${keyword}"`, posts: youtubePosts.length, defaultOn: true, live: true, free: true },
     ],
     result: {
       keyword, analyzedAt: now,
