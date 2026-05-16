@@ -103,7 +103,7 @@ function Landing({ onSearch, user }) {
             <button key={s.id}
               onClick={() => isLive && toggle(s.id)}
               disabled={!isLive}
-              title={isLive ? undefined : "준비 중 — 현재는 레딧·유튜브만 실시간 수집됩니다"}
+              title={isLive ? undefined : "준비 중 — 현재는 네이버·유튜브만 실시간 수집됩니다"}
               style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               height: 34, padding: "0 14px",
@@ -182,7 +182,7 @@ function Landing({ onSearch, user }) {
         paddingTop: 48,
       }}>
         {[
-          { n: "01", t: "수집",        d: "레딧 · 네이버 · 해커뉴스 · 앱스토어 · 구글플레이 · 트러스트파일럿 · 유튜브 댓글에서 키워드 관련 불만 글을 실시간 수집합니다." },
+          { n: "01", t: "수집",        d: "네이버(블로그·카페·지식인) · 유튜브 댓글에서 키워드 관련 불만 글을 실시간 수집합니다." },
           { n: "02", t: "클러스터링",  d: "공감 수·댓글 수·반복 등장으로 가중치를 매겨 상위 페인포인트 3~5개로 압축합니다." },
           { n: "03", t: "아이디어",    d: "각 페인포인트에 대해 타깃·수익모델·MVP까지 포함한 실행 가능한 아이디어를 생성합니다." },
           { n: "04", t: "경쟁·차별점", d: "국내·해외 경쟁자를 자동 조사해 블루오션 / 틈새 / 레드오션을 판정하고 차별점을 제시합니다." },

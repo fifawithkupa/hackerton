@@ -1,5 +1,12 @@
 // Report — 1-page printable report
 function Report({ data, user }) {
+  if (!data.ideas || data.ideas.length === 0) {
+    return (
+      <div style={{ padding: "48px 0", textAlign: "center", color: "var(--pp-ink-dim)", font: "500 14px/1.5 var(--font-base)" }}>
+        아이디어가 생성되지 않았습니다.<br />Gemini API 키를 설정한 뒤 다시 분석해 주세요.
+      </div>
+    );
+  }
   const lead = data.ideas[0];
   const lp = data.painpoints.find(p => p.id === lead.linkedPainpoint);
 
@@ -296,7 +303,7 @@ function Report({ data, user }) {
         }}>
           <span>PAINPOINT v1.0 · 실제 커뮤니티 불만 기반 창업 아이디어 발굴 플랫폼</span>
           <div style={{ flex: 1 }} />
-          <span>painpoint.kr / r/{data.keyword.toLowerCase()}</span>
+          <span>painpoint.kr</span>
         </div>
       </div>
     </div>

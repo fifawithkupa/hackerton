@@ -1,7 +1,7 @@
 // Analyzing — Reddit + 네이버 실시간 수집 + Gemini 분석 (통합)
 const ANALYZE_STEPS = [
   { id: 1, t: "키워드 분석",       d: "동의어·관련 산업 용어 확장" },
-  { id: 2, t: "커뮤니티 수집",     d: "Reddit + 네이버(블로그·카페·지식인) 실시간 수집" },
+  { id: 2, t: "커뮤니티 수집",     d: "네이버(블로그·카페·지식인) + 유튜브 댓글 실시간 수집" },
   { id: 3, t: "전처리·노이즈 제거", d: "스팸·광고·중복 글 제거" },
   { id: 4, t: "Gemini 클러스터링", d: "수집 글을 3~5개 페인포인트로 압축" },
   { id: 5, t: "아이디어 생성",     d: "각 페인포인트별 카드 — 타깃·수익·MVP" },
@@ -42,8 +42,8 @@ function Analyzing({ params, onFinish, onCancel }) {
         // sources 파라미터 빌드
         const enabledSources = params.sources && typeof params.sources === "object"
           ? Object.entries(params.sources).filter(([, on]) => on).map(([id]) => id)
-          : ["reddit", "naver"];
-        const sourcesParam = enabledSources.join(",") || "reddit,naver,youtube";
+          : ["naver", "youtube"];
+        const sourcesParam = enabledSources.join(",") || "naver,youtube";
 
         const searchRes = await fetch(
           `/api/search?q=${encodeURIComponent(params.keyword)}&sources=${encodeURIComponent(sourcesParam)}`,
@@ -53,14 +53,9 @@ function Analyzing({ params, onFinish, onCancel }) {
           throw new Error(searchData.error || `수집 실패 (${searchRes.status})`);
         }
 
-        // 원본 목 아이디어 보존 (Gemini 실패 시 fallback용)
-        const _mockIdeas = window.PP_DATA?.result?.ideas || [];
         window.PP_DATA = {
           ...searchData,
-          result: {
-            ...searchData.result,
-            ideas: _mockIdeas,  // 검색 후에도 mock 아이디어 유지
-          },
+          result: searchData.result,
         };
         window._ssatisCollectedPosts = searchData.collectedPosts || [];
         const n = searchData.result?.totalCollected || 0;
@@ -84,10 +79,10 @@ function Analyzing({ params, onFinish, onCancel }) {
         const health =
           typeof window.checkAnalysisServer === "function"
             ? await window.checkAnalysisServer()
-            : { ok: true, keyLoaded: clientAiConfigured };
-        const useAi = clientAiConfigured && health.ok && health.keyLoaded;
+            : { ok: false, keyLoaded: false };
+        const useAi = health.ok && health.keyLoaded;
 
-        if (clientAiConfigured && !useAi && !cancelled) {
+        if (!useAi && !cancelled) {
           if (health.reason === "old_server" || health.reason === "health_failed") {
             showToast(
               "분석 API가 응답하지 않습니다. Vercel 배포 시 GEMINI_API_KEY 환경변수를 확인하세요.",
@@ -146,25 +141,20 @@ function Analyzing({ params, onFinish, onCancel }) {
             " — /api/search 가 동작하는지, Vercel Functions 로그를 확인하세요.",
           "default",
         );
-        if (clientAiConfigured) {
-          try {
-            setStepIdx(4);
-            const result = await window.runPainpointAnalysis(
-              params.keyword,
-              params.sources,
-            );
-            setStepIdx(ANALYZE_STEPS.length);
-            onFinish(result || null);
-          } catch (geminiErr) {
-            const line =
-              typeof window.interpretAnalysisError === "function"
-                ? window.interpretAnalysisError(geminiErr.message)
-                : "Gemini 분석 실패 — 목 데이터를 표시합니다";
-            showToast(line, "default");
-            setStepIdx(ANALYZE_STEPS.length);
-            onFinish(null);
-          }
-        } else {
+        try {
+          setStepIdx(4);
+          const result = await window.runPainpointAnalysis(
+            params.keyword,
+            params.sources,
+          );
+          setStepIdx(ANALYZE_STEPS.length);
+          onFinish(result || null);
+        } catch (geminiErr) {
+          const line =
+            typeof window.interpretAnalysisError === "function"
+              ? window.interpretAnalysisError(geminiErr.message)
+              : "Gemini 분석 실패";
+          showToast(line, "default");
           setStepIdx(ANALYZE_STEPS.length);
           onFinish(null);
         }
@@ -468,8 +458,7 @@ function Analyzing({ params, onFinish, onCancel }) {
                 style={{ display: "flex", alignItems: "center", gap: 6 }}
               >
                 <span style={{ color: "var(--pp-pain)" }}>›</span>
-                <SourceGlyph id="reddit" size={14} />
-                <span>레딧 + 네이버 + 유튜브 — "{params.keyword}" 수집 중</span>
+                <span>네이버 + 유튜브 — "{params.keyword}" 수집 중</span>
                 <span
                   style={{
                     marginLeft: 4,

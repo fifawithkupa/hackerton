@@ -52,12 +52,10 @@
 
   window.runPainpointAnalysis = async function runPainpointAnalysis(keyword, sources) {
 
-    if (!window.hasOpenAiConfigured()) return null;
-
     const health =
       typeof window.checkAnalysisServer === "function"
         ? await window.checkAnalysisServer()
-        : { ok: true, keyLoaded: true };
+        : { ok: false, keyLoaded: false };
     if (!health.ok || !health.keyLoaded) {
       throw new Error(
         "서버에 Gemini API 키가 없습니다. Vercel → Settings → Environment Variables에 GEMINI_API_KEY를 추가한 뒤 재배포하세요.",

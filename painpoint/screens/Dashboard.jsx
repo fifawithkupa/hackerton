@@ -9,8 +9,19 @@ function Dashboard({ user, onNav, onOpenReport }) {
   React.useEffect(() => {
     if (!user) return;
     SupaReports.list(user.id).then(({ data, error }) => {
-      if (error) { showToast("리포트 불러오기 실패: " + error.message, "error"); }
-      else setReports(data || []);
+      if (error) {
+        console.error("[SSATIS] 리포트 목록 로드 실패:", error);
+        const isAuthError = error.message?.toLowerCase().includes("jwt") ||
+                            error.code === "PGRST301" ||
+                            error.status === 401;
+        if (isAuthError) {
+          showToast("세션이 만료됐습니다. 다시 로그인해 주세요.", "error");
+        } else {
+          showToast("리포트 불러오기 실패: " + error.message, "error");
+        }
+      } else {
+        setReports(data || []);
+      }
       setLoading(false);
     });
   }, [user?.id]);

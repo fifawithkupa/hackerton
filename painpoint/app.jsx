@@ -5,9 +5,11 @@ function App() {
   const [route, setRoute]           = React.useState("landing");
   const [params, setParams]         = React.useState({ keyword: "HR", sources: {} });
   const [analysisResult, setAnalysisResult] = React.useState(null);
+  const [openedReportId, setOpenedReportId] = React.useState(null);
   const [upgradeOpen, setUpgradeOpen] = React.useState(false);
 
   const finishAnalysis = React.useCallback((result) => {
+    setOpenedReportId(null);
     setAnalysisResult(result);
     setRoute("results");
   }, []);
@@ -91,10 +93,22 @@ function App() {
     setRoute("analyzing");
   };
 
-  const onOpenReport = (r) => {
+  const onOpenReport = async (r) => {
+    setOpenedReportId(r.id);
     setParams({ keyword: r.keyword, sources: {} });
     setAnalysisResult(null);
     setRoute("results");
+    // result_json이 이미 포함되어 있으면 바로 사용, 아니면 개별 조회
+    if (r.result_json) {
+      setAnalysisResult(r.result_json);
+      return;
+    }
+    const { data, error } = await SupaReports.get(r.id);
+    if (!error && data?.result_json) {
+      setAnalysisResult(data.result_json);
+    } else if (error) {
+      showToast("리포트 데이터 불러오기 실패: " + (error.message || "알 수 없는 오류"), "error");
+    }
   };
 
   if (loading) return <SplashLoader />;
@@ -105,7 +119,7 @@ function App() {
 
       {route === "landing"     && <Landing     onSearch={onSearch} user={supaUser} />}
       {route === "analyzing"   && <Analyzing   params={params} onFinish={finishAnalysis} onCancel={() => setRoute("landing")} />}
-      {route === "results"     && <Results     params={params} analysisResult={analysisResult} user={supaUser} onBack={() => setRoute(supaUser ? "dashboard" : "landing")} />}
+      {route === "results"     && <Results     params={params} analysisResult={analysisResult} existingReportId={openedReportId} user={supaUser} onBack={() => setRoute(supaUser ? "dashboard" : "landing")} />}
       {route === "login"       && <Login       onGoogleLogin={signInWithGoogle} onBack={() => setRoute("landing")} />}
       {route === "dashboard"   && <Dashboard   user={supaUser} onNav={go} onOpenReport={onOpenReport} />}
       {route === "trends"      && <Trends      user={supaUser} onNav={go} onAnalyze={(kw) => onSearch({ keyword: kw, sources: {} })} />}

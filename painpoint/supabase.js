@@ -229,6 +229,22 @@ const Reports = {
       .order("created_at", { ascending: false });
   },
 
+  async get(reportId) {
+    if (!DB()) {
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith("ssatis:reports:")) continue;
+        const reports = JSON.parse(localStorage.getItem(key) || "[]");
+        const found = reports.find(r => r.id === reportId);
+        if (found) return { data: found, error: null };
+      }
+      return { data: null, error: null };
+    }
+    return DB().from("reports")
+      .select("*")
+      .eq("id", reportId)
+      .single();
+  },
+
   async save(userId, reportData) {
     if (!DB()) {
       const reports = Local.get(userId, "reports");
@@ -359,10 +375,15 @@ function useSupabaseAuth() {
   async function _hydrateUser(authUser) {
     // profiles 테이블에서 플랜 등 추가 정보 가져오기
     const { data: profile } = await Profiles.get(authUser.id);
+    const name = profile?.name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "사용자";
+    // profile이 없으면 생성 (reports FK 제약 충족)
+    if (!profile && DB()) {
+      await Profiles.upsert({ id: authUser.id, email: authUser.email, name, plan: "Free" });
+    }
     setSupaUser({
       id:     authUser.id,
       email:  authUser.email,
-      name:   profile?.name  || authUser.user_metadata?.full_name || authUser.email.split("@")[0],
+      name,
       plan:   profile?.plan  || "Free",
       avatar: authUser.user_metadata?.avatar_url || null,
     });

@@ -1,5 +1,5 @@
 // Results — header + tabs shell
-function Results({ params, analysisResult, user, onBack }) {
+function Results({ params, analysisResult, existingReportId, user, onBack }) {
   const fallback = window.PP_DATA.result;
   const D = React.useMemo(() => {
     if (analysisResult) return analysisResult;
@@ -11,14 +11,17 @@ function Results({ params, analysisResult, user, onBack }) {
   const [savedIdeas, setSavedIdeas] = React.useState({});
   const [reportSaved, setReportSaved] = React.useState(false);
   const [dbReportId, setDbReportId] = React.useState(null);
+  // existingReportId를 ref로 추적해 저장 스킵 여부를 동기적으로 판단
+  const existingReportIdRef = React.useRef(existingReportId);
+  existingReportIdRef.current = existingReportId;
 
   React.useEffect(() => {
     setSelectedIdea(D.ideas[0]?.id);
   }, [D]);
 
-  // 로그인 상태면 Supabase에 리포트 자동 저장
+  // 새 분석 결과만 Supabase에 저장 (기존 리포트 재열기는 저장 안 함)
   React.useEffect(() => {
-    if (!user) return;
+    if (!user || !analysisResult || existingReportIdRef.current) return;
     SupaReports.save(user.id, {
       keyword:      D.keyword,
       verdict:      D.verdict,
@@ -27,9 +30,14 @@ function Results({ params, analysisResult, user, onBack }) {
       ideas_count:  D.ideas.length,
       result_json:  D,
     }).then(({ data, error }) => {
-      if (!error && data) setDbReportId(data.id);
+      if (error) {
+        console.error("[SSATIS] 리포트 저장 실패:", error);
+        showToast("리포트 저장 실패: " + (error.message || "알 수 없는 오류"), "error");
+      } else if (data) {
+        setDbReportId(data.id);
+      }
     });
-  }, [user?.id, D]);
+  }, [user?.id, analysisResult]);
 
   const toggleSaved = (id) => {
     setSavedIdeas(s => {

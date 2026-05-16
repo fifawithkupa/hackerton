@@ -78,7 +78,7 @@ window.getCollectedPostsForAnalysis = function getCollectedPostsForAnalysis(keyw
   const srcList =
     enabled.length > 0
       ? enabled
-      : ["reddit", "naver", "hackernews", "appstore"];
+      : ["naver", "youtube"];
 
   return texts.map((text, i) => ({
     text: `[${kw || "주제"}] ${text}`,
@@ -121,15 +121,6 @@ window.PP_DATA = {
   ],
   "sources": [
     {
-      "id": "reddit",
-      "name": "레딧",
-      "desc": "Reddit 글로벌 커뮤니티",
-      "posts": 100,
-      "defaultOn": true,
-      "live": true,
-      "free": true
-    },
-    {
       "id": "naver",
       "name": "네이버",
       "desc": "블로그·카페·지식인",
@@ -157,13 +148,6 @@ window.PP_DATA = {
     "verdictTone": "violet",
     "log": [
       {
-        "src": "레딧",
-        "id": "reddit",
-        "n": 100,
-        "t": "Reddit 글로벌 커뮤니티",
-        "d": 0.5
-      },
-      {
         "src": "네이버",
         "id": "naver",
         "n": 50,
@@ -188,7 +172,6 @@ window.PP_DATA = {
         "empathy": 6040,
         "comments": 435,
         "sources": {
-          "reddit": 300,
           "naver": 274,
           "youtube": 92
         },
@@ -198,26 +181,7 @@ window.PP_DATA = {
           "무력감": 18,
           "불안": 8
         },
-        "samples": [
-          {
-            "src": "reddit",
-            "title": "How do I tell him",
-            "up": 6040,
-            "link": "https://i.redd.it/sf9abzdsla1h1.jpeg"
-          },
-          {
-            "src": "reddit",
-            "title": "This is the clown work they are selling folks now",
-            "up": 597,
-            "link": "https://i.redd.it/3uoug4qx4c1h1.jpeg"
-          },
-          {
-            "src": "reddit",
-            "title": "Im about to be fired and I am scared. Age 50",
-            "up": 551,
-            "link": "https://www.reddit.com/r/jobs/comments/1tedk43/im_about_to_be_fired_and_i_am_scared_age_50/"
-          }
-        ]
+        "samples": []
       },
       {
         "id": "pp2",
@@ -228,7 +192,6 @@ window.PP_DATA = {
         "empathy": 506,
         "comments": 107,
         "sources": {
-          "reddit": 300,
           "naver": 219,
           "youtube": 51
         },
@@ -238,26 +201,7 @@ window.PP_DATA = {
           "후회": 22,
           "좌절": 16
         },
-        "samples": [
-          {
-            "src": "reddit",
-            "title": "Just how many x on this UnMerrygoRound must I take?!!!",
-            "up": 506,
-            "link": "https://i.redd.it/3f94lwykzc1h1.jpeg"
-          },
-          {
-            "src": "reddit",
-            "title": "Friendly reminder to not take things personal and it’s not because your resume sucks or you do. The market is BAD!!",
-            "up": 395,
-            "link": "https://www.reddit.com/r/recruitinghell/comments/1tdzdhk/friendly_reminder_to_not_take_things_personal_and/"
-          },
-          {
-            "src": "reddit",
-            "title": "FAANG Interviewer Hung Up On Me",
-            "up": 359,
-            "link": "https://www.reddit.com/r/recruitinghell/comments/1te9iyg/faang_interviewer_hung_up_on_me/"
-          }
-        ]
+        "samples": []
       },
       {
         "id": "pp3",
@@ -268,7 +212,6 @@ window.PP_DATA = {
         "empathy": 340,
         "comments": 293,
         "sources": {
-          "reddit": 300,
           "naver": 198,
           "youtube": 41
         },
@@ -278,26 +221,7 @@ window.PP_DATA = {
           "무력감": 18,
           "불안": 12
         },
-        "samples": [
-          {
-            "src": "reddit",
-            "title": "Anyone join a stand up and didn’t intend to have the camera on? What happened?",
-            "up": 340,
-            "link": "https://www.reddit.com/r/cscareerquestions/comments/1tdxdb9/anyone_join_a_stand_up_and_didnt_intend_to_have/"
-          },
-          {
-            "src": "reddit",
-            "title": "I’m genuinely losing it. (Vent)",
-            "up": 317,
-            "link": "https://i.redd.it/estwddzh7d1h1.jpeg"
-          },
-          {
-            "src": "reddit",
-            "title": "Is this suit okay for interviews?",
-            "up": 277,
-            "link": "https://i.redd.it/hw6we836kb1h1.jpeg"
-          }
-        ]
+        "samples": []
       }
     ],
     "ideas": [
