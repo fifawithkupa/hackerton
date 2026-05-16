@@ -48,6 +48,20 @@
 
 const DB = window.supabaseClient;
 
+// ─── localStorage 기반 로컬 스토리지 (Supabase 미연결 시 fallback) ────────────
+const Local = {
+  _key: (userId, table) => `ssatis:${table}:${userId}`,
+
+  get(userId, table) {
+    try { return JSON.parse(localStorage.getItem(Local._key(userId, table)) || "[]"); }
+    catch { return []; }
+  },
+
+  set(userId, table, data) {
+    localStorage.setItem(Local._key(userId, table), JSON.stringify(data));
+  },
+};
+
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
 const Auth = {
@@ -104,18 +118,9 @@ const Profiles = {
 const Reports = {
   async list(userId) {
     if (!DB) {
-      // 목 데이터 반환
-      return {
-        data: [
-          { id: "r1", keyword: "HR",       created_at: "2025-11-14", verdict: "틈새 존재", verdict_tone: "violet",   collected: 1247, ideas_count: 3, starred: true,  share: "공개" },
-          { id: "r2", keyword: "부동산",   created_at: "2025-11-12", verdict: "블루오션",  verdict_tone: "positive", collected:  891, ideas_count: 4, starred: false, share: "비공개" },
-          { id: "r3", keyword: "원격의료", created_at: "2025-11-09", verdict: "틈새 존재", verdict_tone: "violet",   collected:  612, ideas_count: 3, starred: true,  share: "팀" },
-          { id: "r4", keyword: "프리랜서", created_at: "2025-11-07", verdict: "레드오션",  verdict_tone: "warn",     collected: 1542, ideas_count: 5, starred: false, share: "비공개" },
-          { id: "r5", keyword: "유아교육", created_at: "2025-11-04", verdict: "블루오션",  verdict_tone: "positive", collected:  483, ideas_count: 3, starred: true,  share: "공개" },
-          { id: "r6", keyword: "반려동물", created_at: "2025-10-30", verdict: "틈새 존재", verdict_tone: "violet",   collected:  771, ideas_count: 4, starred: false, share: "비공개" },
-        ],
-        error: null,
-      };
+      const data = Local.get(userId, "reports")
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return { data, error: null };
     }
     return DB.from("reports")
       .select("id, keyword, created_at, verdict, verdict_tone, collected, ideas_count, starred, share")
@@ -124,7 +129,18 @@ const Reports = {
   },
 
   async save(userId, reportData) {
-    if (!DB) return { data: { id: "mock-" + Date.now(), ...reportData }, error: null };
+    if (!DB) {
+      const reports = Local.get(userId, "reports");
+      const item = {
+        id: "local-" + Date.now(),
+        created_at: new Date().toISOString(),
+        share: "비공개",
+        starred: false,
+        ...reportData,
+      };
+      Local.set(userId, "reports", [item, ...reports]);
+      return { data: item, error: null };
+    }
     return DB.from("reports")
       .insert({ user_id: userId, ...reportData })
       .select()
@@ -132,7 +148,16 @@ const Reports = {
   },
 
   async toggleStar(reportId, starred) {
-    if (!DB) return { error: null };
+    if (!DB) {
+      // 모든 유저의 reports를 순회해서 해당 id 업데이트
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith("ssatis:reports:")) continue;
+        const reports = JSON.parse(localStorage.getItem(key) || "[]");
+        const updated = reports.map(r => r.id === reportId ? { ...r, starred } : r);
+        localStorage.setItem(key, JSON.stringify(updated));
+      }
+      return { error: null };
+    }
     return DB.from("reports").update({ starred }).eq("id", reportId);
   },
 
@@ -142,7 +167,14 @@ const Reports = {
   },
 
   async delete(reportId) {
-    if (!DB) return { error: null };
+    if (!DB) {
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith("ssatis:reports:")) continue;
+        const reports = JSON.parse(localStorage.getItem(key) || "[]");
+        localStorage.setItem(key, JSON.stringify(reports.filter(r => r.id !== reportId)));
+      }
+      return { error: null };
+    }
     return DB.from("reports").delete().eq("id", reportId);
   },
 };
