@@ -1,10 +1,12 @@
 /**
  * YouTube Data API v3 — 영상 검색 + 댓글 수집
- * YOUTUBE_API_KEY 환경변수 필요
+ * YOUTUBE_API_KEY 환경변수 또는 config.js youtubeApiKey
  */
 
+import { loadYoutubeKey } from "./server-config.mjs";
+
 function getKey() {
-  return process.env.YOUTUBE_API_KEY?.trim() || "";
+  return loadYoutubeKey() || "";
 }
 
 async function fetchYouTubeJSON(url) {

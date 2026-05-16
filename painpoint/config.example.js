@@ -6,7 +6,8 @@ window.SSATIS_CONFIG = {
   supabaseUrl: "YOUR_SUPABASE_URL",
   supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY",
 
-  // Google OAuth (선택)
+  // Google OAuth — GIS 버튼용 (xxx.apps.googleusercontent.com)
+  // Vercel: GOOGLE_CLIENT_ID 환경변수로도 설정 가능
   googleClientId: "",
 
   // Gemini (Google AI Studio). 로컬: node painpoint/dev-server.mjs → http://localhost:8787/

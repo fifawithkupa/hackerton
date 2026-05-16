@@ -1,6 +1,10 @@
 {
   "name": "hackerton",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev:ssatis": "node painpoint/dev-server.mjs",
     "restore:analyzing": "node painpoint/scripts/restore-analyzing.mjs"
