@@ -62,7 +62,7 @@ async function fetchAllCompanies() {
     }
     console.log(`[seed-yc] page ${page}: ${batch.length}건 (누적 ${companies.length} / 총 ${json.totalPages ? json.totalPages * 100 : "?"})`);
 
-    if (!json.nextPage || page >= (json.totalPages || 999)) break;
+    if (!json.nextPage || page >= Math.ceil((json.totalPages || 0) / 2)) break;
     page++;
     await new Promise(r => setTimeout(r, 300));
   }
