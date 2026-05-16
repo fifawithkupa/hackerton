@@ -126,6 +126,7 @@ window.PP_DATA = {
       "desc": "Reddit 글로벌 커뮤니티",
       "posts": 100,
       "defaultOn": true,
+      "live": true,
       "free": true
     },
     {
@@ -134,6 +135,7 @@ window.PP_DATA = {
       "desc": "블로그·카페·지식인",
       "posts": 50,
       "defaultOn": true,
+      "live": true,
       "free": true
     },
     {
@@ -142,6 +144,7 @@ window.PP_DATA = {
       "desc": "관련 영상 댓글",
       "posts": 80,
       "defaultOn": true,
+      "live": true,
       "free": true
     }
   ],
