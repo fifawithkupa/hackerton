@@ -126,6 +126,7 @@ window.PP_DATA = {
       "desc": "r/recruitinghell · r/cscareerquestions · r/jobs",
       "posts": 75,
       "defaultOn": true,
+      "live": true,
       "free": true
     },
     {
@@ -171,9 +172,10 @@ window.PP_DATA = {
     {
       "id": "youtube",
       "name": "유튜브 댓글",
-      "desc": "관련 영상 댓글 톱 50",
+      "desc": "관련 영상 댓글 (YouTube Data API)",
       "posts": 112,
-      "defaultOn": false,
+      "defaultOn": true,
+      "live": true,
       "free": false
     }
   ],

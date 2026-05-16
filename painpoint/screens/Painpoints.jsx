@@ -35,7 +35,9 @@ function PainpointCard({ p }) {
   const sevLabel = { high: "심각도 상", mid: "심각도 중", low: "심각도 하" }[p.severity];
   const sevTone  = { high: "pain", mid: "warn", low: "primary" }[p.severity];
   const totalSrc = Object.values(p.sources).reduce((a, b) => a + b, 0);
-  const sourceOrder = ["reddit", "naver", "hackernews", "appstore", "playstore", "trustpilot", "youtube"];
+  const sourceOrderAll = ["reddit", "naver", "hackernews", "appstore", "playstore", "trustpilot", "youtube"];
+  const sourceOrder = sourceOrderAll.filter((id) => (p.sources[id] || 0) > 0);
+  const platformCount = sourceOrder.length;
   const sourceLabel = {
     reddit: "레딧", naver: "네이버", hackernews: "해커뉴스",
     appstore: "앱스토어", playstore: "Google Play",
@@ -70,7 +72,7 @@ function PainpointCard({ p }) {
               💬 <span className="tnum">{p.comments.toLocaleString()}</span> 댓글
             </span>
             <span className="pp-pill">
-              <span className="tnum">{totalSrc}</span>개 플랫폼 등장
+              <span className="tnum">{platformCount || 1}</span>개 플랫폼 등장
             </span>
           </div>
           <h3 style={{
