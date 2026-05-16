@@ -1,11 +1,20 @@
 // Results — header + tabs shell
-function Results({ params, user, onBack }) {
-  const D = window.PP_DATA.result;
+function Results({ params, analysisResult, user, onBack }) {
+  const fallback = window.PP_DATA.result;
+  const D = React.useMemo(() => {
+    if (analysisResult) return analysisResult;
+    return { ...fallback, keyword: params.keyword || fallback.keyword };
+  }, [analysisResult, params.keyword]);
+
   const [tab, setTab] = React.useState("painpoints");
   const [selectedIdea, setSelectedIdea] = React.useState(D.ideas[0]?.id || null);
   const [savedIdeas, setSavedIdeas] = React.useState({});
   const [reportSaved, setReportSaved] = React.useState(false);
   const [dbReportId, setDbReportId] = React.useState(null);
+
+  React.useEffect(() => {
+    setSelectedIdea(D.ideas[0]?.id);
+  }, [D]);
 
   // 로그인 상태면 Supabase에 리포트 자동 저장
   React.useEffect(() => {
@@ -20,7 +29,7 @@ function Results({ params, user, onBack }) {
     }).then(({ data, error }) => {
       if (!error && data) setDbReportId(data.id);
     });
-  }, [user?.id]);
+  }, [user?.id, D]);
 
   const toggleSaved = (id) => {
     setSavedIdeas(s => {
