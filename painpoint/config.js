@@ -4,7 +4,7 @@
 window.SSATIS_CONFIG = {
   // Admin 이메일 목록 — 로그인 시 자동으로 "Admin" 플랜 부여 (모든 Pro 기능 해제)
   adminEmails: [
-    // "your@email.com",  ← 본인 Google 계정 이메일을 여기에 추가하세요
+    "suprjaymin@snu.ac.kr",
   ],
 
   // 로컬 개발 시 직접 채울 항목 (배포 환경에서는 환경변수 우선)
