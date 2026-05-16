@@ -4,7 +4,13 @@ function App() {
 
   const [route, setRoute]           = React.useState("landing");
   const [params, setParams]         = React.useState({ keyword: "HR", sources: {} });
+  const [analysisResult, setAnalysisResult] = React.useState(null);
   const [upgradeOpen, setUpgradeOpen] = React.useState(false);
+
+  const finishAnalysis = React.useCallback((result) => {
+    setAnalysisResult(result);
+    setRoute("results");
+  }, []);
 
   // supaUser가 바뀌면 로그인/로그아웃 처리
   React.useEffect(() => {
@@ -29,12 +35,14 @@ function App() {
 
   const onSearch = (p) => {
     setParams(p);
+    setAnalysisResult(null);
     if (/^(xyz|없는|test 0)/i.test(p.keyword)) { setRoute("empty"); return; }
     setRoute("analyzing");
   };
 
   const onOpenReport = (r) => {
     setParams({ keyword: r.keyword, sources: {} });
+    setAnalysisResult(null);
     setRoute("results");
   };
 
@@ -45,8 +53,8 @@ function App() {
       <TopNav route={route} user={supaUser} onNav={go} />
 
       {route === "landing"     && <Landing     onSearch={onSearch} user={supaUser} />}
-      {route === "analyzing"   && <Analyzing   params={params} onDone={() => setRoute("results")} onCancel={() => setRoute("landing")} />}
-      {route === "results"     && <Results     params={params} user={supaUser} onBack={() => setRoute(supaUser ? "dashboard" : "landing")} />}
+      {route === "analyzing"   && <Analyzing   params={params} onFinish={finishAnalysis} onCancel={() => setRoute("landing")} />}
+      {route === "results"     && <Results     params={params} analysisResult={analysisResult} user={supaUser} onBack={() => setRoute(supaUser ? "dashboard" : "landing")} />}
       {route === "login"       && <Login       onGoogleLogin={signInWithGoogle} onBack={() => setRoute("landing")} />}
       {route === "dashboard"   && <Dashboard   user={supaUser} onNav={go} onOpenReport={onOpenReport} />}
       {route === "trends"      && <Trends      user={supaUser} onNav={go} onAnalyze={(kw) => onSearch({ keyword: kw, sources: {} })} />}

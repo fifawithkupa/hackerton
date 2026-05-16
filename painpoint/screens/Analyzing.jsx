@@ -3,14 +3,26 @@ const ANALYZE_STEPS = [
   { id: 1, t: "키워드 분석",     d: "동의어·관련 산업 용어 확장" },
   { id: 2, t: "커뮤니티 수집",   d: "6개 플랫폼에서 불만 글 크롤링" },
   { id: 3, t: "전처리·노이즈 제거", d: "스팸·광고·중복 글 제거" },
-  { id: 4, t: "임베딩·클러스터링", d: "유사 불만을 군집으로 묶기" },
-  { id: 5, t: "아이디어 생성",   d: "GPT-4o로 실행 가능한 아이디어 도출" },
-  { id: 6, t: "경쟁자 자동 조사", d: "Perplexity API · Google Search" },
+  { id: 4, t: "Gemini 클러스터링", d: "수집 글을 3~5개 페인포인트로 압축" },
+  { id: 5, t: "아이디어 생성",   d: "각 페인포인트별 카드 — 타깃·수익·MVP" },
+  { id: 6, t: "경쟁자·시장 판정", d: "Gemini — 경쟁자 3곳 + 블루오션/틈새/레드오션" },
 ];
 
-function Analyzing({ params, onDone, onCancel }) {
+function ppSleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function Analyzing({ params, onFinish, onCancel }) {
   const D = window.PP_DATA;
   const log = D.result.log;
+  const useAi =
+    typeof window.hasOpenAiConfigured === "function" && window.hasOpenAiConfigured();
+
+  const sourcesKey = React.useMemo(
+    () => JSON.stringify(params.sources || {}),
+    [params.sources],
+  );
+
   const [elapsed, setElapsed] = React.useState(0);
   const [stepIdx, setStepIdx] = React.useState(0);
   const [logIdx, setLogIdx]  = React.useState(0);
@@ -21,28 +33,82 @@ function Analyzing({ params, onDone, onCancel }) {
     return () => clearInterval(t);
   }, []);
 
-  // step progression
+  // 데모 모드: 단계·로그·완료 타이머
   React.useEffect(() => {
+    if (useAi) return;
+
     const ms = [600, 900, 1400, 1700, 2400, 2900, 3400];
-    const timers = ANALYZE_STEPS.map((_, i) =>
+    const stepTimers = ANALYZE_STEPS.map((_, i) =>
       setTimeout(() => setStepIdx(i + 1), ms[i] || 4000)
     );
-    return () => timers.forEach(clearTimeout);
-  }, []);
 
-  // log progression
-  React.useEffect(() => {
-    const timers = log.map((entry, i) =>
+    const logTimers = log.map((entry, i) =>
       setTimeout(() => setLogIdx(i + 1), entry.d * 1000)
     );
-    return () => timers.forEach(clearTimeout);
-  }, []);
 
-  // finish
+    const finishId = setTimeout(() => onFinish(null), 4200);
+
+    return () => {
+      stepTimers.forEach(clearTimeout);
+      logTimers.forEach(clearTimeout);
+      clearTimeout(finishId);
+    };
+  }, [useAi, onFinish]);
+
+  // Gemini 모드: 수집 로그는 동일하게 재생, 클러스터링·아이디어는 실제 API
   React.useEffect(() => {
-    const id = setTimeout(onDone, 4200);
-    return () => clearTimeout(id);
-  }, []);
+    if (!useAi) return;
+
+    let cancelled = false;
+    const logTimers = log.map((entry, i) =>
+      setTimeout(() => { if (!cancelled) setLogIdx(i + 1); }, entry.d * 1000)
+    );
+
+    (async () => {
+      try {
+        const health = typeof window.checkAnalysisServer === "function"
+          ? await window.checkAnalysisServer()
+          : { ok: true };
+        if (!health.ok && !cancelled) {
+          if (health.reason === "old_server" || health.reason === "health_failed") {
+            showToast("분석 서버가 옛 버전입니다. node painpoint/dev-server.mjs 를 다시 실행하세요.", "default");
+          } else if (health.reason === "offline") {
+            showToast("분석 서버에 연결할 수 없습니다. node painpoint/dev-server.mjs 실행 후 8787 포트로 접속하세요.", "default");
+          }
+        }
+        await ppSleep(280);   if (cancelled) return; setStepIdx(1);
+        await ppSleep(380);   if (cancelled) return; setStepIdx(2);
+        await ppSleep(420);   if (cancelled) return; setStepIdx(3);
+        await ppSleep(320);   if (cancelled) return; setStepIdx(4);
+        await ppSleep(220);   if (cancelled) return; setStepIdx(5);
+        const result = await window.runPainpointAnalysis(params.keyword, params.sources);
+        if (cancelled) return;
+        if (!result) {
+          showToast("GPT 결과 없음 — 목 데이터를 표시합니다", "default");
+        }
+        setStepIdx(ANALYZE_STEPS.length);
+        onFinish(result);
+      } catch (e) {
+        console.error(e);
+        const line =
+          typeof window.interpretAnalysisError === "function"
+            ? window.interpretAnalysisError(e.message)
+            : typeof window.interpretOpenAiAnalysisError === "function"
+              ? window.interpretOpenAiAnalysisError(e.message)
+              : "Gemini 분석 실패 — 목 데이터를 표시합니다";
+        showToast(line, "default");
+        if (!cancelled) {
+          setStepIdx(ANALYZE_STEPS.length);
+          onFinish(null);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      logTimers.forEach(clearTimeout);
+    };
+  }, [useAi, params.keyword, sourcesKey, onFinish]);
 
   const totalCollected = log.slice(0, logIdx).reduce((a, b) => a + b.n, 0);
 

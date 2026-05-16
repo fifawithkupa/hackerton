@@ -1,0 +1,7 @@
+{
+  "name": "hackerton",
+  "private": true,
+  "scripts": {
+    "dev:ssatis": "node painpoint/dev-server.mjs"
+  }
+}
