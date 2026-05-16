@@ -1,55 +1,67 @@
 /**
- * Reddit 검색 — 앱 전용 OAuth 우선, 없으면 공개 API fallback
- * Vercel 환경변수: REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET
+ * Reddit 크롤러 — old.reddit.com HTML 파싱 (API 키 불필요)
  */
 
-const REDDIT_UA = "web:ssatis-painpoint:1.0.0 (by /u/ssatis_bot)";
+const HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+};
 
-// ── OAuth 토큰 캐시 (서버리스 warm 재사용) ──────────────────────────────────
-let _oauthToken = null;
-let _oauthExpiry = 0;
-
-async function getOAuthToken() {
-  const clientId     = process.env.REDDIT_CLIENT_ID?.trim();
-  const clientSecret = process.env.REDDIT_CLIENT_SECRET?.trim();
-  if (!clientId || !clientSecret) return null;
-
-  if (_oauthToken && Date.now() < _oauthExpiry) return _oauthToken;
-
-  const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
-  const res = await fetch("https://www.reddit.com/api/v1/access_token", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${auth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": REDDIT_UA,
-    },
-    body: "grant_type=client_credentials",
-  });
-
-  if (!res.ok) {
-    console.warn("[reddit] OAuth 토큰 발급 실패:", res.status);
-    return null;
-  }
-
-  const data = await res.json();
-  _oauthToken  = data.access_token;
-  _oauthExpiry = Date.now() + (data.expires_in - 60) * 1000;
-  return _oauthToken;
+async function fetchRedditHTML(url) {
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) throw new Error(`Reddit HTTP ${res.status}`);
+  return res.text();
 }
 
-async function fetchRedditListing(url, token) {
-  const headers = { "User-Agent": REDDIT_UA, Accept: "application/json" };
-  if (token) {
-    // OAuth API 사용 시 도메인을 oauth.reddit.com 으로 변경
-    url = url.replace("www.reddit.com", "oauth.reddit.com");
-    headers["Authorization"] = `Bearer ${token}`;
+function decodeHtml(str) {
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .trim();
+}
+
+function parseOldReddit(html) {
+  const posts = [];
+
+  // data-fullname="t3_XXX"> 로 블록 분리
+  const blocks = html.split(/(?=data-fullname="t3_)/);
+
+  for (const block of blocks) {
+    // 글 ID
+    const idM = block.match(/^data-fullname="t3_([^"]+)"/);
+    if (!idM) continue;
+    const id = idM[1];
+
+    // permalink (comments URL)
+    const permalinkM = block.match(/href="(https?:\/\/(?:old\.reddit\.com|www\.reddit\.com)\/r\/[^/]+\/comments\/[^"]+)"\s+class="(?:search-title|may-blank)/);
+    if (!permalinkM) continue;
+    const postUrl = permalinkM[1].replace("old.reddit.com", "www.reddit.com");
+    const permalink = postUrl.replace(/^https?:\/\/www\.reddit\.com/, "");
+
+    // 제목
+    const titleM = block.match(/class="search-title may-blank"[^>]*>([^<]+)<\/a>/);
+    if (!titleM) continue;
+    const title = decodeHtml(titleM[1]);
+    if (!title || title.length < 3) continue;
+
+    // 점수 "640 points"
+    const scoreM = block.match(/class="search-score">([^<]+)<\/span>/);
+    const scoreText = scoreM?.[1]?.replace(/,/g, "") || "0";
+    const score = parseInt(scoreText, 10) || 0;
+
+    // 댓글 수 "1,274 comments"
+    const commentsM = block.match(/([\d,]+)\s+comments?/);
+    const num_comments = parseInt(commentsM?.[1]?.replace(/,/g, "") || "0", 10);
+
+    posts.push({ id, title, permalink, url: postUrl, score, num_comments, selftext: "" });
   }
 
-  const res = await fetch(url, { headers });
-  if (!res.ok) throw new Error(`Reddit HTTP ${res.status}`);
-  const data = await res.json();
-  return (data?.data?.children || []).map((c) => c.data).filter(Boolean);
+  return posts;
 }
 
 export function redditPostUrl(post) {
@@ -67,27 +79,26 @@ export async function searchReddit(keyword) {
   const base = String(keyword || "").trim();
   if (!base) return [];
 
-  const token = await getOAuthToken();
   const q = encodeURIComponent(base);
-
   const urls = [
-    `https://www.reddit.com/search.json?q=${q}&sort=relevance&limit=100&type=link`,
+    `https://old.reddit.com/search?q=${q}&sort=relevance&t=year&limit=100`,
   ];
+
   if (/[가-힣]/.test(base)) {
-    urls.push(`https://www.reddit.com/r/korea/search.json?q=${q}&restrict_sr=1&sort=relevance&limit=50`);
-    urls.push(`https://www.reddit.com/r/Living_in_Korea/search.json?q=${q}&restrict_sr=1&sort=relevance&limit=50`);
+    urls.push(`https://old.reddit.com/r/korea/search?q=${q}&restrict_sr=on&sort=relevance&t=year`);
   }
 
   const byId = new Map();
   for (const url of urls) {
     try {
-      const batch = await fetchRedditListing(url, token);
-      for (const p of batch) {
-        if (!p?.id || p.removed_by_category || p.author === "[deleted]") continue;
+      const html = await fetchRedditHTML(url);
+      const posts = parseOldReddit(html);
+      console.log(`[reddit] ${url} → ${posts.length}건`);
+      for (const p of posts) {
         if (!byId.has(p.id)) byId.set(p.id, p);
       }
     } catch (e) {
-      console.warn("[reddit-search]", e.message);
+      console.warn("[reddit-search]", url, e.message);
     }
   }
 
@@ -105,18 +116,12 @@ export function buildRedditPPData(keyword, posts) {
     text: [p.title, p.selftext].filter(Boolean).join(" — ").slice(0, 500),
     source: "reddit",
     url: redditPostUrl(p),
-    permalink: p.permalink || null,
     score: p.score || 0,
   }));
 
-  const toSample = (p) => ({
-    src: "reddit",
-    title: p.title || "",
-    up: p.score || 0,
-    link: redditPostUrl(p),
-  });
-
+  const toSample = (p) => ({ src: "reddit", title: p.title || "", up: p.score || 0, link: redditPostUrl(p) });
   const groups = [sorted.slice(0, 3), sorted.slice(3, 6), sorted.slice(6, 9)].filter(g => g.length);
+
   const painpoints = groups.map((group, i) => ({
     id: `pp${i + 1}`, rank: i + 1,
     title: (group[0].title || "").length > 60 ? group[0].title.slice(0, 60) + "…" : group[0].title || `페인포인트 ${i + 1}`,
