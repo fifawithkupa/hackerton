@@ -14,6 +14,8 @@ function ppSleep(ms) {
 
 function Analyzing({ params, onFinish, onCancel }) {
   const fallbackLog = window.PP_DATA?.result?.log || [];
+  const clientAiConfigured =
+    typeof window.hasOpenAiConfigured === "function" && window.hasOpenAiConfigured();
 
   const [elapsed, setElapsed] = React.useState(0);
   const [stepIdx, setStepIdx] = React.useState(0);
@@ -51,7 +53,15 @@ function Analyzing({ params, onFinish, onCancel }) {
           throw new Error(searchData.error || `수집 실패 (${searchRes.status})`);
         }
 
-        window.PP_DATA = { ...searchData, result: { ...searchData.result, ideas: [] } };
+        // 원본 목 아이디어 보존 (Gemini 실패 시 fallback용)
+        const _mockIdeas = window.PP_DATA?.result?.ideas || [];
+        window.PP_DATA = {
+          ...searchData,
+          result: {
+            ...searchData.result,
+            ideas: _mockIdeas,  // 검색 후에도 mock 아이디어 유지
+          },
+        };
         window._ssatisCollectedPosts = searchData.collectedPosts || [];
         const n = searchData.result?.totalCollected || 0;
         window._ssatisCollectMeta = {
@@ -71,17 +81,33 @@ function Analyzing({ params, onFinish, onCancel }) {
         if (cancelled) return;
         setStepIdx(3);
 
-        // 서버 헬스체크로 Gemini 키 확인 (클라이언트 config 또는 서버 env 둘 다 지원)
         const health =
           typeof window.checkAnalysisServer === "function"
             ? await window.checkAnalysisServer()
-            : { ok: false, keyLoaded: false };
+            : { ok: true, keyLoaded: clientAiConfigured };
+        const useAi = clientAiConfigured && health.ok && health.keyLoaded;
 
-        const localKeyOk =
-          typeof window.hasOpenAiConfigured === "function" && window.hasOpenAiConfigured();
-        const useAi = localKeyOk || health.keyLoaded === true;
+        if (clientAiConfigured && !useAi && !cancelled) {
+          if (health.reason === "old_server" || health.reason === "health_failed") {
+            showToast(
+              "분석 API가 응답하지 않습니다. Vercel 배포 시 GEMINI_API_KEY 환경변수를 확인하세요.",
+              "default",
+            );
+          } else if (health.reason === "offline") {
+            showToast(
+              "분석 API에 연결할 수 없습니다. 배포 URL에서 /api/ssatis-health 를 확인하세요.",
+              "default",
+            );
+          } else if (!health.keyLoaded) {
+            showToast(
+              "서버에 Gemini 키가 없습니다. Vercel Settings → Environment Variables에 GEMINI_API_KEY를 추가하세요.",
+              "default",
+            );
+          }
+        }
 
         if (useAi) {
+
           await ppSleep(300);
           if (cancelled) return;
           setStepIdx(4);
@@ -107,7 +133,6 @@ function Analyzing({ params, onFinish, onCancel }) {
           return;
         }
 
-        // Gemini 키 없음 — 크롤링 결과만 표시
         await ppSleep(600);
         if (cancelled) return;
         setStepIdx(ANALYZE_STEPS.length);
@@ -116,16 +141,40 @@ function Analyzing({ params, onFinish, onCancel }) {
         if (cancelled) return;
         console.error(e);
         setError(e.message || String(e));
-        showToast(e.message || "수집 실패", "default");
-        setStepIdx(ANALYZE_STEPS.length);
-        onFinish(null);
+        showToast(
+          (e.message || "수집 실패") +
+            " — /api/search 가 동작하는지, Vercel Functions 로그를 확인하세요.",
+          "default",
+        );
+        if (clientAiConfigured) {
+          try {
+            setStepIdx(4);
+            const result = await window.runPainpointAnalysis(
+              params.keyword,
+              params.sources,
+            );
+            setStepIdx(ANALYZE_STEPS.length);
+            onFinish(result || null);
+          } catch (geminiErr) {
+            const line =
+              typeof window.interpretAnalysisError === "function"
+                ? window.interpretAnalysisError(geminiErr.message)
+                : "Gemini 분석 실패 — 목 데이터를 표시합니다";
+            showToast(line, "default");
+            setStepIdx(ANALYZE_STEPS.length);
+            onFinish(null);
+          }
+        } else {
+          setStepIdx(ANALYZE_STEPS.length);
+          onFinish(null);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [params.keyword, params.sources, onFinish]);
+  }, [params.keyword, params.sources, clientAiConfigured, onFinish]);
 
   const totalCollected = collectDone
     ? postCount

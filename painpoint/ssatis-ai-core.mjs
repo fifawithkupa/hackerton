@@ -22,11 +22,11 @@ export function buildPostDigest(posts) {
     .slice(0, 45)
     .map((p, i) => {
       const text =
-        p.text ||
-        [p.title, p.selftext].filter(Boolean).join(" — ") ||
-        "(내용 없음)";
+        (typeof p.text === "string" && p.text.trim()) ||
+        [p.title, p.selftext].filter(Boolean).join(" — ");
       return `[${i + 1}] (${p.source || "mixed"}) ${text}`;
     })
+    .filter((line) => !line.endsWith(") ") && !line.endsWith(") undefined"))
     .join("\n");
 }
 
@@ -251,9 +251,8 @@ export function normalizeAnalysisResult(raw, keyword, posts, collectMeta = null)
     const samples = srcKeys.map((src, i) => {
       const srcPosts = postsBySource[src] || [];
       const fromPost = srcPosts[idx] ?? srcPosts[0];
-      const rawText = fromPost?.text || fromPost?.title || "";
-      const titleFromPost = rawText
-        ? String(rawText).split(" — ")[0].slice(0, 120)
+      const titleFromPost = fromPost?.text
+        ? String(fromPost.text).split(" — ")[0].slice(0, 120)
         : "";
       let link = "#";
       if (fromPost?.url && fromPost.url !== "#" && /^https?:\/\//i.test(fromPost.url)) {

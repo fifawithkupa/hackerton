@@ -1,19 +1,16 @@
 // Google-only login screen
 function Login({ onGoogleLogin, onBack }) {
   const [loading, setLoading] = React.useState(false);
-  const [gisReady, setGisReady] = React.useState(false);
-  const [gisFailed, setGisFailed] = React.useState(false);
+  const [authMode, setAuthMode] = React.useState("loading"); // loading | gis | supabase | none
   const googleBtnRef = React.useRef(null);
-  const hasClientId = !!((window.SSATIS_CONFIG || {}).googleClientId);
 
-  // GIS renderButton 초기화
   React.useEffect(() => {
-    const clientId = (window.SSATIS_CONFIG || {}).googleClientId;
-    if (!clientId) { setGisFailed(true); return; }
-
+    let cancelled = false;
     let initialized = false;
-    const initGIS = () => {
-      if (initialized || !googleBtnRef.current || typeof google === "undefined") return;
+    let timer = null;
+
+    const initGIS = (clientId) => {
+      if (initialized || cancelled || !googleBtnRef.current || typeof google === "undefined") return;
       initialized = true;
 
       google.accounts.id.initialize({
@@ -21,13 +18,7 @@ function Login({ onGoogleLogin, onBack }) {
         callback: async (response) => {
           setLoading(true);
           try {
-            const base64 = response.credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-            const p = JSON.parse(
-              decodeURIComponent(
-                atob(base64).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join("")
-              )
-            );
-            await onGoogleLogin({ id: p.sub, email: p.email, name: p.name, avatar: p.picture });
+            await onGoogleLogin({ credential: response.credential });
           } catch (e) {
             showToast("로그인 오류: " + e.message, "error");
             setLoading(false);
@@ -42,21 +33,54 @@ function Login({ onGoogleLogin, onBack }) {
         text: "continue_with",
         locale: "ko",
       });
-      setGisReady(true);
     };
 
-    if (typeof google !== "undefined") {
-      initGIS();
-    } else {
-      let waited = 0;
-      const timer = setInterval(() => {
-        waited += 200;
-        if (typeof google !== "undefined") { clearInterval(timer); initGIS(); }
-        else if (waited >= 8000) { clearInterval(timer); setGisFailed(true); }
-      }, 200);
-      return () => clearInterval(timer);
+    const waitForGoogle = (clientId) => {
+      if (typeof google !== "undefined") {
+        initGIS(clientId);
+        return;
+      }
+      timer = setInterval(() => {
+        if (cancelled) return;
+        if (typeof google !== "undefined") {
+          clearInterval(timer);
+          initGIS(clientId);
+        }
+      }, 100);
+    };
+
+    (async () => {
+      if (typeof window.waitForSsatisConfig === "function") {
+        await window.waitForSsatisConfig();
+      }
+      if (cancelled) return;
+
+      const clientId = (window.SSATIS_CONFIG || {}).googleClientId;
+      if (clientId) {
+        setAuthMode("gis");
+        waitForGoogle(clientId);
+      } else if (window.supabaseClient) {
+        setAuthMode("supabase");
+      } else {
+        setAuthMode("none");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [onGoogleLogin]);
+
+  const handleSupabaseOAuth = async () => {
+    setLoading(true);
+    try {
+      await onGoogleLogin();
+    } catch (e) {
+      showToast("로그인 오류: " + e.message, "error");
+      setLoading(false);
     }
-  }, []);
+  };
 
   return (
     <main className="fade-in" style={{
@@ -141,41 +165,61 @@ function Login({ onGoogleLogin, onBack }) {
           별도 가입 없이 Google 계정으로 바로 시작합니다.
         </p>
 
-        {/* GIS가 여기에 실제 Google 버튼을 주입 */}
-        <div ref={googleBtnRef} style={{ width: "100%", minHeight: gisReady ? 52 : 0 }} />
-
-        {/* GIS 로드 전: 로딩 표시 */}
-        {hasClientId && !gisReady && !gisFailed && (
+        {authMode === "loading" && (
           <div style={{
-            width: "100%", padding: "14px 20px",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-            background: "#f8f9fa", border: "1.5px solid #dadce0", borderRadius: 8,
-            font: "500 14px/1 var(--font-base)", color: "#80868b",
+            minHeight: 52,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--pp-ink-soft)",
+            font: "500 14px/1 var(--font-base)",
           }}>
-            Google 로그인 버튼 불러오는 중…
+            로그인 준비 중…
           </div>
         )}
 
-        {/* GIS 로드 실패 또는 Client ID 없을 때 폴백 */}
-        {(!hasClientId || gisFailed) && (
+        {authMode === "gis" && (
+          <div ref={googleBtnRef} style={{ width: "100%", minHeight: 52 }} />
+        )}
+
+        {authMode === "supabase" && (
           <button
-            onClick={async () => {
-              setLoading(true);
-              await onGoogleLogin({ id: "demo-" + Date.now(), email: "demo@ssatis.io", name: "데모 사용자", avatar: null });
-            }}
+            type="button"
+            onClick={handleSupabaseOAuth}
+            disabled={loading}
+            className="pp-btn"
+            data-variant="outline"
             style={{
-              width: "100%", padding: "12px 20px",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-              background: "#fff", border: "1.5px solid #dadce0", borderRadius: 8,
-              font: "600 15px/1 var(--font-base)", color: "#3c4043",
-              cursor: "pointer", transition: "box-shadow 0.15s",
+              width: "100%",
+              minHeight: 52,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 12,
+              font: "600 15px/1 var(--font-base)",
             }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = "0 1px 6px rgba(0,0,0,0.15)"}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
           >
             <GoogleG />
-            Google 계정으로 계속하기
+            Google로 계속하기
           </button>
+        )}
+
+        {authMode === "none" && (
+          <div style={{
+            padding: 16,
+            borderRadius: 12,
+            border: "1px solid var(--pp-line)",
+            background: "var(--pp-surface-soft)",
+            font: "500 13px/1.6 var(--font-base)",
+            color: "var(--pp-ink-soft)",
+          }}>
+            Google 로그인이 설정되지 않았습니다.
+            <br />
+            Vercel 환경변수에 <strong>GOOGLE_CLIENT_ID</strong> 또는{" "}
+            <strong>SUPABASE_URL</strong> · <strong>SUPABASE_ANON_KEY</strong>를 추가한 뒤 재배포하세요.
+            <br />
+            Google Cloud Console에 배포 도메인을 Authorized JavaScript origins에 등록해야 합니다.
+          </div>
         )}
 
         {loading && (

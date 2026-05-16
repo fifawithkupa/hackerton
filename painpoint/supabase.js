@@ -46,7 +46,10 @@
 //   create policy "own reports"    on reports     for all using (auth.uid() = user_id);
 //   create policy "own ideas"      on saved_ideas for all using (auth.uid() = user_id);
 
-const DB = window.supabaseClient;
+/** bootstrap-config.js 가 비동기로 초기화하므로 매 호출마다 최신 클라이언트 참조 */
+function DB() {
+  return window.supabaseClient || null;
+}
 
 // ─── localStorage 기반 로컬 스토리지 (Supabase 미연결 시 fallback) ────────────
 const Local = {
@@ -66,14 +69,48 @@ const Local = {
 
 // Google JWT 디코드 (UTF-8 한글 이름 지원)
 function _decodeGoogleJwt(credential) {
-  const base64 = credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  const base64 = credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
   const json = decodeURIComponent(
-    atob(base64).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+    atob(base64)
+      .split("")
+      .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+      .join(""),
   );
   return JSON.parse(json);
 }
 
+function _authRedirectUrl() {
+  return window.location.origin + (window.location.pathname || "/");
+}
+
 const Auth = {
+  /** GIS id_token → Supabase 세션 (권장) */
+  async signInWithGoogleCredential(credential) {
+    if (!credential) return { error: { message: "Google 인증 토큰이 없습니다." } };
+    if (!DB()?.auth?.signInWithIdToken) {
+      try {
+        const p = _decodeGoogleJwt(credential);
+        return {
+          error: null,
+          googleUser: {
+            id: p.sub,
+            email: p.email,
+            name: p.name,
+            avatar: p.picture,
+          },
+        };
+      } catch {
+        return { error: { message: "인증 정보 파싱 실패" } };
+      }
+    }
+    const { data, error } = await DB().auth.signInWithIdToken({
+      provider: "google",
+      token: credential,
+    });
+    if (error) return { error };
+    return { error: null, session: data?.session };
+  },
+
   // Google OAuth 로그인
   signInWithGoogle() {
     const clientId = (window.SSATIS_CONFIG || {}).googleClientId;
@@ -122,27 +159,32 @@ const Auth = {
       });
     }
 
-    // Supabase OAuth
-    if (DB) {
-      return DB.auth.signInWithOAuth({
+    // Supabase OAuth (Google Client ID 없을 때)
+    if (DB()) {
+      return DB().auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: window.location.origin + window.location.pathname },
+        options: { redirectTo: _authRedirectUrl() },
       });
     }
 
-    return Promise.resolve({ error: { message: 'Google Client ID 또는 Supabase 설정이 필요합니다.' } });
+    return Promise.resolve({
+      error: {
+        message:
+          "Google 로그인 설정이 없습니다. Vercel에 GOOGLE_CLIENT_ID 또는 SUPABASE_URL·SUPABASE_ANON_KEY를 추가하세요.",
+      },
+    });
   },
 
   // 로그아웃
   async signOut() {
     // 로컬 세션 삭제
     localStorage.removeItem('ssatis:session');
-    if (DB) return DB.auth.signOut();
+    if (DB()) return DB().auth.signOut();
   },
 
   // 현재 세션
   async getSession() {
-    if (DB) return DB.auth.getSession();
+    if (DB()) return DB().auth.getSession();
     // localStorage에 저장된 세션 복구
     try {
       const saved = localStorage.getItem('ssatis:session');
@@ -153,7 +195,7 @@ const Auth = {
 
   // 세션 변화 구독
   onAuthStateChange(cb) {
-    if (DB) return DB.auth.onAuthStateChange(cb);
+    if (DB()) return DB().auth.onAuthStateChange(cb);
     return { data: { subscription: { unsubscribe: () => {} } } };
   },
 };
@@ -162,37 +204,33 @@ const Auth = {
 
 const Profiles = {
   async get(userId) {
-    if (!DB) return { data: null, error: null };
-    return DB.from("profiles").select("*").eq("id", userId).single();
+    if (!DB()) return { data: null, error: null };
+    return DB().from("profiles").select("*").eq("id", userId).single();
   },
 
   async upsert(profile) {
-    if (!DB) return { data: profile, error: null };
-    return DB.from("profiles").upsert(profile, { onConflict: "id" }).select().single();
+    if (!DB()) return { data: profile, error: null };
+    return DB().from("profiles").upsert(profile, { onConflict: "id" }).select().single();
   },
 };
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
-// Supabase UUID 여부 확인 — Google sub(숫자)은 localStorage 사용
-const isSupaUUID = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-const useLocal = (userId) => !DB || !isSupaUUID(userId);
-
 const Reports = {
   async list(userId) {
-    if (useLocal(userId)) {
+    if (!DB()) {
       const data = Local.get(userId, "reports")
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       return { data, error: null };
     }
-    return DB.from("reports")
+    return DB().from("reports")
       .select("id, keyword, created_at, verdict, verdict_tone, collected, ideas_count, starred, share")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
   },
 
   async save(userId, reportData) {
-    if (useLocal(userId)) {
+    if (!DB()) {
       const reports = Local.get(userId, "reports");
       const item = {
         id: "local-" + Date.now(),
@@ -204,40 +242,41 @@ const Reports = {
       Local.set(userId, "reports", [item, ...reports]);
       return { data: item, error: null };
     }
-    return DB.from("reports")
+    return DB().from("reports")
       .insert({ user_id: userId, ...reportData })
       .select()
       .single();
   },
 
   async toggleStar(reportId, starred) {
-    for (const key of Object.keys(localStorage)) {
-      if (!key.startsWith("ssatis:reports:")) continue;
-      const reports = JSON.parse(localStorage.getItem(key) || "[]");
-      const updated = reports.map(r => r.id === reportId ? { ...r, starred } : r);
-      localStorage.setItem(key, JSON.stringify(updated));
+    if (!DB()) {
+      // 모든 유저의 reports를 순회해서 해당 id 업데이트
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith("ssatis:reports:")) continue;
+        const reports = JSON.parse(localStorage.getItem(key) || "[]");
+        const updated = reports.map(r => r.id === reportId ? { ...r, starred } : r);
+        localStorage.setItem(key, JSON.stringify(updated));
+      }
+      return { error: null };
     }
-    if (DB && !reportId.startsWith("local-")) {
-      return DB.from("reports").update({ starred }).eq("id", reportId);
-    }
-    return { error: null };
+    return DB().from("reports").update({ starred }).eq("id", reportId);
   },
 
   async updateShare(reportId, share) {
-    if (!DB || reportId.startsWith("local-")) return { error: null };
-    return DB.from("reports").update({ share }).eq("id", reportId);
+    if (!DB()) return { error: null };
+    return DB().from("reports").update({ share }).eq("id", reportId);
   },
 
   async delete(reportId) {
-    for (const key of Object.keys(localStorage)) {
-      if (!key.startsWith("ssatis:reports:")) continue;
-      const reports = JSON.parse(localStorage.getItem(key) || "[]");
-      localStorage.setItem(key, JSON.stringify(reports.filter(r => r.id !== reportId)));
+    if (!DB()) {
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith("ssatis:reports:")) continue;
+        const reports = JSON.parse(localStorage.getItem(key) || "[]");
+        localStorage.setItem(key, JSON.stringify(reports.filter(r => r.id !== reportId)));
+      }
+      return { error: null };
     }
-    if (DB && !reportId.startsWith("local-")) {
-      return DB.from("reports").delete().eq("id", reportId);
-    }
-    return { error: null };
+    return DB().from("reports").delete().eq("id", reportId);
   },
 };
 
@@ -245,29 +284,29 @@ const Reports = {
 
 const SavedIdeasDB = {
   async list(userId) {
-    if (!DB) return { data: null, error: null }; // localStorage fallback은 SavedIdeas.jsx가 처리
-    return DB.from("saved_ideas")
+    if (!DB()) return { data: null, error: null }; // localStorage fallback은 SavedIdeas.jsx가 처리
+    return DB().from("saved_ideas")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
   },
 
   async add(userId, idea) {
-    if (!DB) return { data: { id: "mock-" + Date.now(), ...idea }, error: null };
-    return DB.from("saved_ideas")
+    if (!DB()) return { data: { id: "mock-" + Date.now(), ...idea }, error: null };
+    return DB().from("saved_ideas")
       .insert({ user_id: userId, ...idea })
       .select()
       .single();
   },
 
   async updateNote(ideaId, note) {
-    if (!DB) return { error: null };
-    return DB.from("saved_ideas").update({ note }).eq("id", ideaId);
+    if (!DB()) return { error: null };
+    return DB().from("saved_ideas").update({ note }).eq("id", ideaId);
   },
 
   async remove(ideaId) {
-    if (!DB) return { error: null };
-    return DB.from("saved_ideas").delete().eq("id", ideaId);
+    if (!DB()) return { error: null };
+    return DB().from("saved_ideas").delete().eq("id", ideaId);
   },
 };
 
@@ -279,27 +318,40 @@ function useSupabaseAuth() {
   const [loading, setLoading]   = React.useState(true);
 
   React.useEffect(() => {
-    // 초기 세션 확인
-    Auth.getSession().then(({ data }) => {
+    let subscription = { unsubscribe: () => {} };
+
+    (async () => {
+      if (typeof window.waitForSsatisConfig === "function") {
+        await window.waitForSsatisConfig();
+      }
+
+      const { data } = await Auth.getSession();
       const session = data?.session;
       if (session?.user) {
-        // localStorage 세션 복구 (Google 직접 로그인)
         const u = session.user;
-        if (u.sub || u.id) {
-          setSupaUser({ id: u.sub || u.id, email: u.email, name: u.name, plan: "Free", avatar: u.picture || u.avatar || null });
+        if (u.sub || (u.id && !u.user_metadata)) {
+          setSupaUser({
+            id: u.sub || u.id,
+            email: u.email,
+            name: u.name,
+            plan: "Free",
+            avatar: u.picture || u.avatar || null,
+          });
           setLoading(false);
-          return;
+        } else {
+          await _hydrateUser(session.user);
+          setLoading(false);
         }
-        _hydrateUser(session.user);
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
-    });
 
-    // 세션 변화 구독
-    const { data: { subscription } } = Auth.onAuthStateChange((_event, session) => {
-      if (session?.user) _hydrateUser(session.user);
-      else setSupaUser(null);
-    });
+      const sub = Auth.onAuthStateChange((_event, nextSession) => {
+        if (nextSession?.user) _hydrateUser(nextSession.user);
+        else setSupaUser(null);
+      });
+      subscription = sub?.data?.subscription || subscription;
+    })();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -316,20 +368,62 @@ function useSupabaseAuth() {
     });
   }
 
-  async function signInWithGoogle(directUser) {
-    // Login.jsx가 GIS 버튼에서 직접 디코딩한 유저를 넘겨주는 경우
-    if (directUser && directUser.id) {
-      const user = { id: directUser.id, email: directUser.email, name: directUser.name, plan: "Free", avatar: directUser.avatar || null };
-      localStorage.setItem('ssatis:session', JSON.stringify(directUser));
+  async function signInWithGoogle(payload) {
+    if (typeof window.waitForSsatisConfig === "function") {
+      await window.waitForSsatisConfig();
+    }
+
+    // GIS id_token (Supabase signInWithIdToken)
+    if (payload?.credential) {
+      const { error, session, googleUser } = await Auth.signInWithGoogleCredential(
+        payload.credential,
+      );
+      if (session?.user) {
+        await _hydrateUser(session.user);
+        return;
+      }
+      if (googleUser?.id) {
+        const user = {
+          id: googleUser.id,
+          email: googleUser.email,
+          name: googleUser.name,
+          plan: "Free",
+          avatar: googleUser.avatar || null,
+        };
+        localStorage.setItem("ssatis:session", JSON.stringify(googleUser));
+        setSupaUser(user);
+        return;
+      }
+      if (error) showToast("로그인 실패: " + error.message, "error");
+      return;
+    }
+
+    // 로컬 전용 (Supabase 없음)
+    if (payload?.id) {
+      const user = {
+        id: payload.id,
+        email: payload.email,
+        name: payload.name,
+        plan: "Free",
+        avatar: payload.avatar || null,
+      };
+      localStorage.setItem("ssatis:session", JSON.stringify(payload));
       setSupaUser(user);
       return;
     }
-    // 기존 흐름 (Supabase OAuth 등)
+
+    // Supabase Google OAuth 리다이렉트
     const result = await Auth.signInWithGoogle();
     const { error, googleUser } = result || {};
     if (googleUser) {
-      const user = { id: googleUser.id, email: googleUser.email, name: googleUser.name, plan: "Free", avatar: googleUser.avatar };
-      localStorage.setItem('ssatis:session', JSON.stringify(googleUser));
+      const user = {
+        id: googleUser.id,
+        email: googleUser.email,
+        name: googleUser.name,
+        plan: "Free",
+        avatar: googleUser.avatar,
+      };
+      localStorage.setItem("ssatis:session", JSON.stringify(googleUser));
       setSupaUser(user);
     }
     if (error) showToast("로그인 실패: " + error.message, "error");
@@ -350,4 +444,5 @@ Object.assign(window, {
   SupaReports: Reports,
   SupaSavedIdeas: SavedIdeasDB,
   useSupabaseAuth,
+  decodeGoogleJwt: _decodeGoogleJwt,
 });
