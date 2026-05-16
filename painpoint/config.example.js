@@ -16,4 +16,7 @@ window.SSATIS_CONFIG = {
 
   // 다른 호스트 프록시만 쓸 때 (예: "http://127.0.0.1:8787")
   analysisApiBase: "",
+
+  // YouTube Data API v3 (댓글 수집)
+  youtubeApiKey: "YOUR_YOUTUBE_API_KEY",
 };

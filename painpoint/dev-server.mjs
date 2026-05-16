@@ -84,6 +84,10 @@ function loadGeminiKey() {
   return loadConfigJs().key;
 }
 
+function loadYoutubeKey() {
+  return process.env.YOUTUBE_API_KEY?.trim() || null;
+}
+
 let GEMINI_MODEL = resolveGeminiModel();
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────────
@@ -308,6 +312,7 @@ const server = http.createServer(async (req, res) => {
         provider: "gemini",
         model: resolveGeminiModel(),
         keyLoaded: Boolean(loadGeminiKey()),
+        youtubeKeyLoaded: Boolean(loadYoutubeKey()),
       }),
     );
     return;
@@ -499,5 +504,6 @@ server.listen(PORT, () => {
   console.log(`\nSSATIS dev server  http://localhost:${PORT}/`);
   console.log(`Gemini 모델  : ${resolveGeminiModel()}`);
   console.log(`Gemini 키    : ${loadGeminiKey() ? "로드됨 ✓" : "없음 — .env 또는 config.js 확인"}`);
-  console.log(`수집 소스    : Reddit + 네이버 (블로그·카페·지식인)\n`);
+  console.log(`YouTube 키   : ${loadYoutubeKey() ? "로드됨 ✓" : "없음 — .env 의 YOUTUBE_API_KEY 확인"}`);
+  console.log(`수집 소스    : Reddit + 네이버 + YouTube\n`);
 });

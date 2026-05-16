@@ -36,6 +36,7 @@ function PainpointCard({ p }) {
   const sevTone  = { high: "pain", mid: "warn", low: "primary" }[p.severity];
   const totalSrc = Object.values(p.sources).reduce((a, b) => a + b, 0);
   const sourceOrder = ["reddit", "naver", "youtube"];
+  const platformCount = sourceOrder.filter(id => (p.sources[id] || 0) > 0).length;
   const sourceLabel = { reddit: "레딧", naver: "네이버", youtube: "유튜브 댓글" };
 
   return (
