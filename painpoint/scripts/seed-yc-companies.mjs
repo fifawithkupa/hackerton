@@ -20,17 +20,18 @@ const GEMINI_KEY = process.env.GEMINI_API_KEY;
 
 async function embedBatch(texts) {
   const results = [];
-  for (let i = 0; i < texts.length; i += 100) {
-    const batch = texts.slice(i, i + 100);
+  for (let i = 0; i < texts.length; i += 10) {
+    const batch = texts.slice(i, i + 10);
     const responses = await Promise.all(batch.map(text =>
-      fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_KEY}`, {
+      fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_KEY}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "models/text-embedding-004", content: { parts: [{ text }] } }),
+        body: JSON.stringify({ model: "models/gemini-embedding-001", content: { parts: [{ text }] } }),
       }).then(r => r.json())
     ));
     for (const r of responses) results.push(r?.embedding?.values || null);
-    console.log(`[seed-yc] embedding ${Math.min(i + 100, texts.length)}/${texts.length}`);
+    if (i % 100 === 0) console.log(`[seed-yc] embedding ${Math.min(i + 10, texts.length)}/${texts.length}`);
+    await new Promise(r => setTimeout(r, 100));
   }
   return results;
 }
