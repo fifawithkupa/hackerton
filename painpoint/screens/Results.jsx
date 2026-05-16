@@ -3,9 +3,9 @@ function Results({ params, analysisResult, existingReportId, user, onBack }) {
   const fallback = window.PP_DATA.result;
   const D = React.useMemo(() => {
     if (!analysisResult) return { ...fallback, keyword: params.keyword || fallback.keyword };
-    // Gemini 결과에 ideas가 없으면 fallback 아이디어 주입
-    if (!analysisResult.ideas?.length && fallback.ideas?.length) {
-      return { ...analysisResult, ideas: fallback.ideas };
+    // Gemini 결과에 ideas가 없으면 data.js 목데이터 주입 (PP_DATA 덮어쓰기 후에도 보존)
+    if (!analysisResult.ideas?.length && window.PP_MOCK_IDEAS?.length) {
+      return { ...analysisResult, ideas: window.PP_MOCK_IDEAS };
     }
     return analysisResult;
   }, [analysisResult, params.keyword]);

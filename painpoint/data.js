@@ -224,7 +224,7 @@ window.PP_DATA = {
         "samples": []
       }
     ],
-    "ideas": [
+    "ideas": window.PP_MOCK_IDEAS = [
       {
         "id": "i1",
         "rank": 1,
