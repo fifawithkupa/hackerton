@@ -50,9 +50,6 @@
 
   window.runPainpointAnalysis = async function runPainpointAnalysis(keyword, sources) {
 
-    if (!window.hasOpenAiConfigured()) return null;
-
-
 
     const posts =
       (Array.isArray(window._ssatisCollectedPosts) && window._ssatisCollectedPosts.length
@@ -223,12 +220,12 @@
       cfg.analysisApiBase != null ? String(cfg.analysisApiBase).replace(/\/$/, "") : "";
     try {
       const r = await fetch(`${base}/api/ssatis-health`, { cache: "no-store" });
-      if (!r.ok) return { ok: false, reason: "health_failed" };
+      if (!r.ok) return { ok: false, reason: "health_failed", keyLoaded: false };
       const j = await r.json();
-      if (j.provider !== "gemini") return { ok: false, reason: "old_server" };
-      return { ok: true, model: j.model };
+      if (j.provider !== "gemini") return { ok: false, reason: "old_server", keyLoaded: j.keyLoaded ?? false };
+      return { ok: true, model: j.model, keyLoaded: j.keyLoaded ?? false };
     } catch {
-      return { ok: false, reason: "offline" };
+      return { ok: false, reason: "offline", keyLoaded: false };
     }
   };
 
