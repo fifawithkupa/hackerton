@@ -1,7 +1,43 @@
 // Report — 1-page printable report
-function Report({ data }) {
+function Report({ data, user }) {
   const lead = data.ideas[0];
   const lp = data.painpoints.find(p => p.id === lead.linkedPainpoint);
+
+  const isPro = user?.plan && user.plan !== "Free";
+
+  const [ycData, setYcData]           = React.useState(null);
+  const [ycLoading, setYcLoading]     = React.useState(false);
+  const [mktData, setMktData]         = React.useState(null);
+  const [mktLoading, setMktLoading]   = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isPro || !data.painpoints?.[0]) return;
+    const queryText = `${data.painpoints[0].title}. ${data.keyword}`;
+    setYcLoading(true);
+    fetch("/api/premium/yc-matches", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ textQuery: queryText, userId: user?.id }),
+    })
+      .then(r => r.json())
+      .then(d => { if (!d.error) setYcData(d); })
+      .catch(() => {})
+      .finally(() => setYcLoading(false));
+  }, []);
+
+  React.useEffect(() => {
+    if (!isPro) return;
+    setMktLoading(true);
+    fetch("/api/premium/market-signals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ keyword: data.keyword, userId: user?.id }),
+    })
+      .then(r => r.json())
+      .then(d => { if (!d.error) setMktData(d); })
+      .catch(() => {})
+      .finally(() => setMktLoading(false));
+  }, []);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -227,6 +263,28 @@ function Report({ data }) {
           </div>
         </Section>
 
+        {/* Section 04: 시장 트렌드 */}
+        <Section title="04  시장 트렌드 · Pro">
+          {isPro ? (
+            mktLoading ? <ProSkeleton label="Google Trends 데이터 불러오는 중…" /> :
+            mktData    ? <MarketSection data={mktData} /> :
+            <ProEmpty label="트렌드 데이터를 불러오지 못했습니다." />
+          ) : (
+            <ProLocked label="Google Trends · 네이버 데이터랩 성장률 그래프" />
+          )}
+        </Section>
+
+        {/* Section 05: YC 인사이트 */}
+        <Section title="05  YC 인사이트 · Pro">
+          {isPro ? (
+            ycLoading ? <ProSkeleton label="유사 YC 스타트업 검색 중…" /> :
+            ycData    ? <YCSection data={ycData} /> :
+            <ProEmpty label="YC 데이터를 불러오지 못했습니다." />
+          ) : (
+            <ProLocked label="이 페인포인트를 먼저 해결한 YC 졸업사 + YC가 원하는 스타트업" />
+          )}
+        </Section>
+
         {/* footer */}
         <div style={{
           marginTop: 32,
@@ -274,6 +332,315 @@ function MiniField({ label, value, colspan }) {
         font: "600 13px/1.4 var(--font-base)",
         color: "var(--pp-ink)",
       }}>{value}</div>
+    </div>
+  );
+}
+
+// ── Pro 공통 UI ─────────────────────────────────────────────────────────────
+
+function ProSkeleton({ label }) {
+  return (
+    <div style={{
+      padding: "20px 0",
+      display: "flex", alignItems: "center", gap: 10,
+      font: "500 13px/1 var(--font-base)",
+      color: "var(--pp-ink-dim)",
+    }}>
+      <div style={{
+        width: 16, height: 16, borderRadius: "50%",
+        border: "2px solid var(--pp-pain)",
+        borderTopColor: "transparent",
+        animation: "spin 0.8s linear infinite",
+      }} />
+      {label}
+    </div>
+  );
+}
+
+function ProEmpty({ label }) {
+  return (
+    <div style={{
+      padding: "16px 0",
+      font: "500 12px/1.5 var(--font-base)",
+      color: "var(--pp-ink-dim)",
+    }}>{label}</div>
+  );
+}
+
+function ProLocked({ label }) {
+  return (
+    <div style={{
+      padding: "20px 16px",
+      borderRadius: 12,
+      background: "var(--pp-surface-soft)",
+      border: "1px dashed var(--pp-line)",
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+    }}>
+      <div>
+        <div style={{
+          font: "600 13px/1.5 var(--font-base)",
+          color: "var(--pp-ink-soft)",
+          marginBottom: 4,
+        }}>{label}</div>
+        <div style={{
+          font: "500 11px/1 var(--font-base)",
+          color: "var(--pp-ink-dim)",
+        }}>Pro 플랜에서 이용 가능합니다</div>
+      </div>
+      <div style={{
+        flexShrink: 0,
+        padding: "8px 16px",
+        borderRadius: 8,
+        background: "var(--pp-pain)",
+        color: "#fff",
+        font: "700 12px/1 var(--font-base)",
+        cursor: "default",
+      }}>Pro로 업그레이드</div>
+    </div>
+  );
+}
+
+// ── 시장 트렌드 섹션 ────────────────────────────────────────────────────────
+
+function Sparkline({ values }) {
+  if (!values?.length) return null;
+  const nums = values.map(v => v.value ?? v.ratio ?? 0);
+  const max = Math.max(...nums, 1);
+  const w = 120, h = 32;
+  const pts = nums.map((v, i) => {
+    const x = (i / (nums.length - 1)) * w;
+    const y = h - (v / max) * h;
+    return `${x},${y}`;
+  }).join(" ");
+  return (
+    <svg width={w} height={h} style={{ display: "block" }}>
+      <polyline points={pts} fill="none" stroke="var(--pp-pain)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MarketSection({ data }) {
+  const g = data.google_trend;
+  const n = data.naver_trend;
+  const growth = data.growth_rate;
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      {/* Google Trends */}
+      <div style={{ padding: 16, background: "var(--pp-surface-soft)", borderRadius: 12 }}>
+        <div style={{
+          font: "700 10px/1 var(--font-base)",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "var(--pp-ink-dim)",
+          marginBottom: 10,
+        }}>Google Trends · 12개월</div>
+        {g ? (
+          <>
+            <Sparkline values={g.values} />
+            <div style={{ marginTop: 8, display: "flex", gap: 12, alignItems: "baseline" }}>
+              <span style={{
+                font: "800 22px/1 var(--font-display)",
+                color: (g.growth_rate ?? 0) >= 0 ? "#16a34a" : "#dc2626",
+              }}>
+                {(g.growth_rate ?? 0) >= 0 ? "+" : ""}{g.growth_rate ?? 0}%
+              </span>
+              <span style={{ font: "500 11px/1 var(--font-base)", color: "var(--pp-ink-dim)" }}>
+                {g.peak_period ? `최고 ${g.peak_period}` : ""}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div style={{ font: "500 12px/1 var(--font-base)", color: "var(--pp-ink-dim)" }}>데이터 없음</div>
+        )}
+      </div>
+
+      {/* Naver Datalab */}
+      <div style={{ padding: 16, background: "var(--pp-surface-soft)", borderRadius: 12 }}>
+        <div style={{
+          font: "700 10px/1 var(--font-base)",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          color: "var(--pp-ink-dim)",
+          marginBottom: 10,
+        }}>네이버 데이터랩 · 12개월</div>
+        {n ? (
+          <>
+            <Sparkline values={n.values} />
+            <div style={{ marginTop: 8, display: "flex", gap: 12, alignItems: "baseline" }}>
+              <span style={{
+                font: "800 22px/1 var(--font-display)",
+                color: (n.growth_rate ?? 0) >= 0 ? "#16a34a" : "#dc2626",
+              }}>
+                {(n.growth_rate ?? 0) >= 0 ? "+" : ""}{n.growth_rate ?? 0}%
+              </span>
+              <span style={{ font: "500 11px/1 var(--font-base)", color: "var(--pp-ink-dim)" }}>
+                {n.peak_period ? `최고 ${n.peak_period}` : ""}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div style={{ font: "500 12px/1 var(--font-base)", color: "var(--pp-ink-dim)" }}>네이버 키 미설정</div>
+        )}
+      </div>
+
+      {/* 통합 성장률 */}
+      {growth != null && (
+        <div style={{
+          gridColumn: "span 2",
+          padding: "12px 16px",
+          borderRadius: 10,
+          background: growth >= 0 ? "#f0fdf4" : "#fef2f2",
+          display: "flex", alignItems: "center", gap: 10,
+        }}>
+          <span style={{
+            font: "700 10px/1 var(--font-base)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: growth >= 0 ? "#16a34a" : "#dc2626",
+          }}>종합 성장률</span>
+          <span style={{
+            font: "800 18px/1 var(--font-display)",
+            color: growth >= 0 ? "#16a34a" : "#dc2626",
+          }}>{growth >= 0 ? "+" : ""}{growth}%</span>
+          <span style={{ font: "500 12px/1 var(--font-base)", color: "var(--pp-ink-soft)" }}>
+            지난 12개월 기준 검색 관심도 변화
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── YC 인사이트 섹션 ─────────────────────────────────────────────────────────
+
+function SimilarityBar({ score }) {
+  const pct = Math.round((score ?? 0) * 100);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div style={{
+        flex: 1, height: 4, borderRadius: 9999,
+        background: "var(--pp-line)",
+        overflow: "hidden",
+      }}>
+        <div style={{
+          width: `${pct}%`, height: "100%",
+          background: "var(--pp-pain)",
+          borderRadius: 9999,
+        }} />
+      </div>
+      <span style={{
+        font: "600 10px/1 var(--font-base)",
+        color: "var(--pp-ink-dim)",
+        minWidth: 28,
+        textAlign: "right",
+      }}>{pct}%</span>
+    </div>
+  );
+}
+
+function YCSection({ data }) {
+  const companies = data?.companies || [];
+  const rfs = data?.rfs || [];
+
+  if (!companies.length && !rfs.length) {
+    return (
+      <div style={{ font: "500 12px/1 var(--font-base)", color: "var(--pp-ink-dim)", padding: "12px 0" }}>
+        유사 YC 스타트업을 찾지 못했습니다.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {companies.length > 0 && (
+        <div>
+          <div style={{
+            font: "700 10px/1 var(--font-base)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--pp-ink-dim)",
+            marginBottom: 10,
+          }}>유사 YC 졸업사 (상위 {companies.length}개)</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1, borderRadius: 10, overflow: "hidden", border: "1px solid var(--pp-line)" }}>
+            {companies.map((c, i) => (
+              <div key={c.id} style={{
+                padding: "10px 14px",
+                background: i % 2 === 0 ? "#fff" : "var(--pp-surface-soft)",
+                display: "grid",
+                gridTemplateColumns: "1fr 48px 80px",
+                alignItems: "center",
+                gap: 12,
+              }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                    <span style={{
+                      font: "700 13px/1 var(--font-base)",
+                      color: "var(--pp-ink)",
+                    }}>{c.name}</span>
+                    {c.batch && (
+                      <span style={{
+                        padding: "2px 6px", borderRadius: 4,
+                        background: "var(--pp-pain-bg)",
+                        font: "700 9px/1 var(--font-base)",
+                        color: "var(--pp-pain)",
+                        letterSpacing: "0.04em",
+                      }}>{c.batch}</span>
+                    )}
+                  </div>
+                  <div style={{
+                    font: "500 11px/1.4 var(--font-base)",
+                    color: "var(--pp-ink-soft)",
+                  }}>{c.one_liner || c.long_description?.slice(0, 80)}</div>
+                </div>
+                <div style={{
+                  font: "700 11px/1 var(--font-base)",
+                  color: "var(--pp-ink-dim)",
+                  textAlign: "right",
+                }}>#{i + 1}</div>
+                <SimilarityBar score={c.similarity} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {rfs.length > 0 && (
+        <div>
+          <div style={{
+            font: "700 10px/1 var(--font-base)",
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--pp-ink-dim)",
+            marginBottom: 10,
+          }}>YC가 원하는 스타트업 (Request for Startups)</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {rfs.map((r, i) => (
+              <div key={r.id} style={{
+                padding: "12px 14px",
+                background: "var(--pp-surface-soft)",
+                borderRadius: 10,
+                borderLeft: "3px solid var(--pp-pain)",
+              }}>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  marginBottom: 4,
+                }}>
+                  <span style={{
+                    font: "700 13px/1 var(--font-base)",
+                    color: "var(--pp-ink)",
+                  }}>{r.title}</span>
+                  <SimilarityBar score={r.similarity} />
+                </div>
+                <div style={{
+                  font: "500 11px/1.5 var(--font-base)",
+                  color: "var(--pp-ink-soft)",
+                }}>{r.description?.slice(0, 120)}{r.description?.length > 120 ? "…" : ""}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

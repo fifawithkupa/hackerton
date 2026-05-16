@@ -1,60 +1,78 @@
-// Pricing page — 3 plans + comparison + FAQ
+// Pricing page — 1일 무제한(₩9,900) + 정기 구독 플랜 + 토스페이먼츠 결제
+const PLAN_DAY = {
+  id: "day",
+  name: "1일 무제한",
+  tag: "오늘 당장 써보기",
+  price: 9900,
+  cta: "바로 결제하기",
+  badge: "즉시 이용",
+  features: [
+    { label: "24시간 무제한 분석",      yes: true },
+    { label: "Reddit + 네이버 + YouTube", yes: true },
+    { label: "Gemini AI 페인포인트 분석", yes: true },
+    { label: "아이디어·경쟁자 리포트",   yes: true },
+    { label: "리포트 저장 24시간",       yes: true },
+    { label: "PDF 내보내기",             yes: false },
+    { label: "팀 공유",                  yes: false },
+  ],
+};
+
 const PRICING_PLANS = [
   {
     id: "free", name: "Free", tag: "개인 탐색용", priceM: 0, priceY: 0,
     cta: "무료로 시작",
     features: [
-      { label: "월 리포트 3건",     yes: true },
-      { label: "레딧 1개 소스",     yes: true },
+      { label: "월 리포트 3건",         yes: true },
+      { label: "레딧 1개 소스",         yes: true },
       { label: "트렌드 Top 3 미리보기", yes: true },
       { label: "기본 경쟁자 조사 (3개)", yes: true },
-      { label: "리포트 저장 7일",  yes: true },
-      { label: "PDF 워터마크",     yes: true,  dim: true },
-      { label: "팀 공유",          yes: false },
+      { label: "리포트 저장 7일",       yes: true },
+      { label: "PDF 워터마크",          yes: true, dim: true },
+      { label: "팀 공유",              yes: false },
     ],
   },
   {
     id: "pro", name: "Pro", tag: "예비 창업자·기획자", priceM: 29000, priceY: 23200,
     cta: "Pro 시작하기", featured: true,
     features: [
-      { label: "월 리포트 무제한",      yes: true },
-      { label: "전체 6개 소스",          yes: true },
-      { label: "심화 경쟁자 조사 (10+)", yes: true },
-      { label: "리포트 영구 저장",       yes: true },
-      { label: "워터마크 없는 PDF",      yes: true },
-      { label: "트렌드 주간 뉴스레터",   yes: true },
-      { label: "팀 공유",                yes: false },
+      { label: "월 리포트 무제한",          yes: true },
+      { label: "전체 3개 소스",              yes: true },
+      { label: "심화 경쟁자 조사 (10+)",    yes: true },
+      { label: "리포트 영구 저장",           yes: true },
+      { label: "워터마크 없는 PDF",          yes: true },
+      { label: "트렌드 주간 뉴스레터",       yes: true },
+      { label: "팀 공유",                    yes: false },
     ],
   },
   {
     id: "team", name: "Team", tag: "스타트업·액셀러레이터", priceM: 99000, priceY: 79200,
     cta: "팀 플랜 문의",
     features: [
-      { label: "Pro의 모든 기능",         yes: true },
-      { label: "팀원 5명 포함",            yes: true },
-      { label: "공용 컬렉션·코멘트",       yes: true },
-      { label: "업종별 페인포인트 트렌드", yes: true },
-      { label: "전담 온보딩",              yes: true },
-      { label: "SSO·SAML",                 yes: true },
+      { label: "Pro의 모든 기능",           yes: true },
+      { label: "팀원 5명 포함",              yes: true },
+      { label: "공용 컬렉션·코멘트",         yes: true },
+      { label: "업종별 페인포인트 트렌드",   yes: true },
+      { label: "전담 온보딩",                yes: true },
+      { label: "SSO·SAML",                   yes: true },
     ],
   },
 ];
 
 const FAQS = [
-  { q: "결제는 어떻게 하나요?", a: "Stripe를 통해 신용카드·국내 카드·해외 카드를 지원하며, 부가세 포함 가격입니다. 세금계산서는 Team 플랜부터 발행됩니다." },
-  { q: "언제든 해지할 수 있나요?", a: "네. 결제일 기준 언제든 해지 가능하며, 남은 기간 동안은 그대로 사용하실 수 있습니다." },
-  { q: "Free 플랜에서도 모든 소스를 쓸 수 있나요?", a: "Free 플랜은 레딧 소스만 지원합니다. 네이버·해커뉴스·앱스토어·구글플레이·트러스트파일럿·유튜브 댓글은 Pro 이상에서 사용 가능합니다." },
-  { q: "리포트 PDF는 영구 보관되나요?", a: "Pro와 Team 플랜은 영구 보관되며, Free 플랜은 생성 후 7일까지만 저장됩니다." },
+  { q: "1일 무제한은 어떻게 동작하나요?", a: "결제 완료 즉시 24시간 동안 모든 분석 기능을 무제한으로 이용하실 수 있습니다. 월정액 구독 없이 필요한 날만 결제하세요." },
+  { q: "결제는 어떻게 하나요?", a: "토스페이먼츠를 통해 신용카드·체크카드·간편결제를 지원합니다. 부가세 포함 가격입니다." },
+  { q: "언제든 해지할 수 있나요?", a: "네. Pro·Team 정기구독은 결제일 기준 언제든 해지 가능하며, 남은 기간 동안 그대로 사용하실 수 있습니다." },
+  { q: "리포트 PDF는 영구 보관되나요?", a: "Pro·Team 플랜은 영구 보관되며, Free 플랜은 7일, 1일 무제한은 24시간까지 저장됩니다." },
   { q: "팀원을 더 추가할 수 있나요?", a: "Team 플랜은 기본 5명을 포함하며, 1명당 월 ₩19,000에 추가할 수 있습니다." },
 ];
 
 function Pricing({ onNav, onChoose }) {
-  const [cycle, setCycle] = React.useState("month"); // month | year
+  const [cycle, setCycle] = React.useState("month");
 
   return (
     <main className="fade-in" style={{ maxWidth: 1280, margin: "0 auto", padding: "64px 40px 80px" }}>
       {/* header */}
-      <div style={{ textAlign: "center", marginBottom: 40 }}>
+      <div style={{ textAlign: "center", marginBottom: 48 }}>
         <div style={{
           font: "700 12px/1 var(--font-base)",
           letterSpacing: "0.12em",
@@ -73,10 +91,14 @@ function Pricing({ onNav, onChoose }) {
           font: "500 17px/1.5 var(--font-base)",
           color: "var(--pp-ink-soft)",
         }}>아이디어 하나로 시작해, 팀으로 확장해도 같은 데이터를 그대로 씁니다.</p>
+      </div>
 
-        {/* billing toggle */}
+      {/* 1일 무제한 배너 */}
+      <DayPassBanner onChoose={onChoose} />
+
+      {/* billing toggle */}
+      <div style={{ textAlign: "center", margin: "40px 0 32px" }}>
         <div style={{
-          marginTop: 32,
           display: "inline-flex", padding: 4,
           background: "var(--pp-surface-soft)", borderRadius: 9999,
         }}>
@@ -215,6 +237,87 @@ function Pricing({ onNav, onChoose }) {
         </div>
       </div>
     </main>
+  );
+}
+
+function DayPassBanner({ onChoose }) {
+  return (
+    <div style={{
+      borderRadius: 20,
+      background: "linear-gradient(135deg, #171719 0%, #2d2d30 100%)",
+      color: "#fff",
+      padding: "32px 40px",
+      display: "grid",
+      gridTemplateColumns: "1fr auto",
+      alignItems: "center",
+      gap: 32,
+      marginBottom: 8,
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {/* 배경 장식 */}
+      <div style={{
+        position: "absolute", right: -60, top: -60,
+        width: 240, height: 240,
+        borderRadius: "50%",
+        background: "rgba(255,77,77,0.08)",
+        pointerEvents: "none",
+      }} />
+
+      <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <span style={{
+            padding: "4px 10px", borderRadius: 9999,
+            background: "var(--pp-pain)", color: "#fff",
+            font: "700 11px/1 var(--font-base)",
+            letterSpacing: "0.06em",
+          }}>즉시 이용</span>
+          <span style={{
+            font: "600 13px/1 var(--font-base)",
+            color: "rgba(255,255,255,0.5)",
+          }}>구독 없이 오늘 하루만</span>
+        </div>
+        <div style={{
+          font: "800 32px/1.2 var(--font-display)",
+          letterSpacing: "-0.02em",
+          marginBottom: 8,
+        }}>1일 무제한 이용권</div>
+        <div style={{
+          font: "500 14px/1.5 var(--font-base)",
+          color: "rgba(255,255,255,0.6)",
+          maxWidth: 520,
+        }}>
+          Reddit · 네이버 · YouTube 전 소스 + Gemini AI 분석을 24시간 동안 무제한으로.
+          구독 부담 없이 지금 당장 아이디어를 검증하세요.
+        </div>
+      </div>
+
+      <div style={{ textAlign: "right", flexShrink: 0 }}>
+        <div style={{ marginBottom: 16 }}>
+          <span className="tnum" style={{
+            font: "900 52px/1 var(--font-display)",
+            letterSpacing: "-0.03em",
+          }}>₩9,900</span>
+          <div style={{
+            font: "500 13px/1 var(--font-base)",
+            color: "rgba(255,255,255,0.5)",
+            marginTop: 4,
+          }}>부가세 포함 · 24시간</div>
+        </div>
+        <button
+          onClick={() => onChoose("day")}
+          className="pp-btn"
+          style={{
+            background: "var(--pp-pain)", color: "#fff",
+            border: "none", padding: "14px 28px",
+            font: "700 15px/1 var(--font-base)",
+            borderRadius: 12, cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}>
+          토스로 결제하기 →
+        </button>
+      </div>
+    </div>
   );
 }
 

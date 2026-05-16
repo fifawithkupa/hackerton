@@ -50,7 +50,7 @@ function Competitors({ data, selectedId, onSelect }) {
             color: "var(--pp-ink)",
             flex: 1,
           }}>경쟁자 자동 조사 · {idea.competitors.length}개 발견</div>
-          <span className="pp-pill">Perplexity API + Google Custom Search</span>
+          <span className="pp-pill">Gemini 시장·경쟁 분석</span>
         </div>
         <table style={{
           width: "100%", borderCollapse: "collapse",

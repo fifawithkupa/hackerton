@@ -46,39 +46,157 @@
 //   create policy "own reports"    on reports     for all using (auth.uid() = user_id);
 //   create policy "own ideas"      on saved_ideas for all using (auth.uid() = user_id);
 
-const DB = window.supabaseClient;
+/** bootstrap-config.js 가 비동기로 초기화하므로 매 호출마다 최신 클라이언트 참조 */
+function DB() {
+  return window.supabaseClient || null;
+}
+
+// ─── localStorage 기반 로컬 스토리지 (Supabase 미연결 시 fallback) ────────────
+const Local = {
+  _key: (userId, table) => `ssatis:${table}:${userId}`,
+
+  get(userId, table) {
+    try { return JSON.parse(localStorage.getItem(Local._key(userId, table)) || "[]"); }
+    catch { return []; }
+  },
+
+  set(userId, table, data) {
+    localStorage.setItem(Local._key(userId, table), JSON.stringify(data));
+  },
+};
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
+// Google JWT 디코드 (UTF-8 한글 이름 지원)
+function _decodeGoogleJwt(credential) {
+  const base64 = credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+  const json = decodeURIComponent(
+    atob(base64)
+      .split("")
+      .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+      .join(""),
+  );
+  return JSON.parse(json);
+}
+
+function _authRedirectUrl() {
+  return window.location.origin + (window.location.pathname || "/");
+}
+
 const Auth = {
-  // Google OAuth 로그인
-  async signInWithGoogle() {
-    if (!DB) return { error: null, mock: true };
-    return DB.auth.signInWithOAuth({ provider: "google" });
+  /** GIS id_token → Supabase 세션 (권장) */
+  async signInWithGoogleCredential(credential) {
+    if (!credential) return { error: { message: "Google 인증 토큰이 없습니다." } };
+    if (!DB()?.auth?.signInWithIdToken) {
+      try {
+        const p = _decodeGoogleJwt(credential);
+        return {
+          error: null,
+          googleUser: {
+            id: p.sub,
+            email: p.email,
+            name: p.name,
+            avatar: p.picture,
+          },
+        };
+      } catch {
+        return { error: { message: "인증 정보 파싱 실패" } };
+      }
+    }
+    const { data, error } = await DB().auth.signInWithIdToken({
+      provider: "google",
+      token: credential,
+    });
+    if (error) return { error };
+    return { error: null, session: data?.session };
   },
 
-  // 이메일/비밀번호 로그인 (대안)
-  async signInWithEmail(email, password) {
-    if (!DB) return { data: { user: { email, id: "mock-id" } }, error: null };
-    return DB.auth.signInWithPassword({ email, password });
+  // Google OAuth 로그인
+  signInWithGoogle() {
+    const clientId = (window.SSATIS_CONFIG || {}).googleClientId;
+
+    // Google Identity Services 로그인
+    if (clientId) {
+      return new Promise((resolve) => {
+        const onCredential = (response) => {
+          try {
+            const p = _decodeGoogleJwt(response.credential);
+            resolve({
+              error: null,
+              googleUser: { id: p.sub, email: p.email, name: p.name, avatar: p.picture },
+            });
+          } catch (e) {
+            resolve({ error: { message: '인증 정보 파싱 실패' } });
+          }
+        };
+
+        // GIS 스크립트 로드 대기 후 초기화
+        const init = () => {
+          google.accounts.id.initialize({ client_id: clientId, callback: onCredential });
+          google.accounts.id.prompt((notification) => {
+            // One Tap이 표시 안 될 경우 팝업 방식으로 fallback
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              const popup = window.open(
+                `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${encodeURIComponent(clientId)}` +
+                `&redirect_uri=${encodeURIComponent(window.location.origin + window.location.pathname)}` +
+                `&response_type=id_token` +
+                `&scope=openid%20email%20profile` +
+                `&nonce=${Math.random().toString(36).slice(2)}`,
+                '_blank', 'width=480,height=600'
+              );
+              if (!popup) resolve({ error: { message: '팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.' } });
+            }
+          });
+        };
+
+        if (typeof google !== 'undefined') {
+          init();
+        } else {
+          // GIS 스크립트 로드 대기
+          window.addEventListener('load', init, { once: true });
+        }
+      });
+    }
+
+    // Supabase OAuth (Google Client ID 없을 때)
+    if (DB()) {
+      return DB().auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: _authRedirectUrl() },
+      });
+    }
+
+    return Promise.resolve({
+      error: {
+        message:
+          "Google 로그인 설정이 없습니다. Vercel에 GOOGLE_CLIENT_ID 또는 SUPABASE_URL·SUPABASE_ANON_KEY를 추가하세요.",
+      },
+    });
   },
 
   // 로그아웃
   async signOut() {
-    if (!DB) return;
-    return DB.auth.signOut();
+    // 로컬 세션 삭제
+    localStorage.removeItem('ssatis:session');
+    if (DB()) return DB().auth.signOut();
   },
 
   // 현재 세션
   async getSession() {
-    if (!DB) return { data: { session: null } };
-    return DB.auth.getSession();
+    if (DB()) return DB().auth.getSession();
+    // localStorage에 저장된 세션 복구
+    try {
+      const saved = localStorage.getItem('ssatis:session');
+      if (saved) return { data: { session: { user: JSON.parse(saved) } } };
+    } catch {}
+    return { data: { session: null } };
   },
 
   // 세션 변화 구독
   onAuthStateChange(cb) {
-    if (!DB) return { data: { subscription: { unsubscribe: () => {} } } };
-    return DB.auth.onAuthStateChange(cb);
+    if (DB()) return DB().auth.onAuthStateChange(cb);
+    return { data: { subscription: { unsubscribe: () => {} } } };
   },
 };
 
@@ -86,13 +204,13 @@ const Auth = {
 
 const Profiles = {
   async get(userId) {
-    if (!DB) return { data: null, error: null };
-    return DB.from("profiles").select("*").eq("id", userId).single();
+    if (!DB()) return { data: null, error: null };
+    return DB().from("profiles").select("*").eq("id", userId).single();
   },
 
   async upsert(profile) {
-    if (!DB) return { data: profile, error: null };
-    return DB.from("profiles").upsert(profile, { onConflict: "id" }).select().single();
+    if (!DB()) return { data: profile, error: null };
+    return DB().from("profiles").upsert(profile, { onConflict: "id" }).select().single();
   },
 };
 
@@ -100,47 +218,65 @@ const Profiles = {
 
 const Reports = {
   async list(userId) {
-    if (!DB) {
-      // 목 데이터 반환
-      return {
-        data: [
-          { id: "r1", keyword: "HR",       created_at: "2025-11-14", verdict: "틈새 존재", verdict_tone: "violet",   collected: 1247, ideas_count: 3, starred: true,  share: "공개" },
-          { id: "r2", keyword: "부동산",   created_at: "2025-11-12", verdict: "블루오션",  verdict_tone: "positive", collected:  891, ideas_count: 4, starred: false, share: "비공개" },
-          { id: "r3", keyword: "원격의료", created_at: "2025-11-09", verdict: "틈새 존재", verdict_tone: "violet",   collected:  612, ideas_count: 3, starred: true,  share: "팀" },
-          { id: "r4", keyword: "프리랜서", created_at: "2025-11-07", verdict: "레드오션",  verdict_tone: "warn",     collected: 1542, ideas_count: 5, starred: false, share: "비공개" },
-          { id: "r5", keyword: "유아교육", created_at: "2025-11-04", verdict: "블루오션",  verdict_tone: "positive", collected:  483, ideas_count: 3, starred: true,  share: "공개" },
-          { id: "r6", keyword: "반려동물", created_at: "2025-10-30", verdict: "틈새 존재", verdict_tone: "violet",   collected:  771, ideas_count: 4, starred: false, share: "비공개" },
-        ],
-        error: null,
-      };
+    if (!DB()) {
+      const data = Local.get(userId, "reports")
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      return { data, error: null };
     }
-    return DB.from("reports")
+    return DB().from("reports")
       .select("id, keyword, created_at, verdict, verdict_tone, collected, ideas_count, starred, share")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
   },
 
   async save(userId, reportData) {
-    if (!DB) return { data: { id: "mock-" + Date.now(), ...reportData }, error: null };
-    return DB.from("reports")
+    if (!DB()) {
+      const reports = Local.get(userId, "reports");
+      const item = {
+        id: "local-" + Date.now(),
+        created_at: new Date().toISOString(),
+        share: "비공개",
+        starred: false,
+        ...reportData,
+      };
+      Local.set(userId, "reports", [item, ...reports]);
+      return { data: item, error: null };
+    }
+    return DB().from("reports")
       .insert({ user_id: userId, ...reportData })
       .select()
       .single();
   },
 
   async toggleStar(reportId, starred) {
-    if (!DB) return { error: null };
-    return DB.from("reports").update({ starred }).eq("id", reportId);
+    if (!DB()) {
+      // 모든 유저의 reports를 순회해서 해당 id 업데이트
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith("ssatis:reports:")) continue;
+        const reports = JSON.parse(localStorage.getItem(key) || "[]");
+        const updated = reports.map(r => r.id === reportId ? { ...r, starred } : r);
+        localStorage.setItem(key, JSON.stringify(updated));
+      }
+      return { error: null };
+    }
+    return DB().from("reports").update({ starred }).eq("id", reportId);
   },
 
   async updateShare(reportId, share) {
-    if (!DB) return { error: null };
-    return DB.from("reports").update({ share }).eq("id", reportId);
+    if (!DB()) return { error: null };
+    return DB().from("reports").update({ share }).eq("id", reportId);
   },
 
   async delete(reportId) {
-    if (!DB) return { error: null };
-    return DB.from("reports").delete().eq("id", reportId);
+    if (!DB()) {
+      for (const key of Object.keys(localStorage)) {
+        if (!key.startsWith("ssatis:reports:")) continue;
+        const reports = JSON.parse(localStorage.getItem(key) || "[]");
+        localStorage.setItem(key, JSON.stringify(reports.filter(r => r.id !== reportId)));
+      }
+      return { error: null };
+    }
+    return DB().from("reports").delete().eq("id", reportId);
   },
 };
 
@@ -148,29 +284,29 @@ const Reports = {
 
 const SavedIdeasDB = {
   async list(userId) {
-    if (!DB) return { data: null, error: null }; // localStorage fallback은 SavedIdeas.jsx가 처리
-    return DB.from("saved_ideas")
+    if (!DB()) return { data: null, error: null }; // localStorage fallback은 SavedIdeas.jsx가 처리
+    return DB().from("saved_ideas")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
   },
 
   async add(userId, idea) {
-    if (!DB) return { data: { id: "mock-" + Date.now(), ...idea }, error: null };
-    return DB.from("saved_ideas")
+    if (!DB()) return { data: { id: "mock-" + Date.now(), ...idea }, error: null };
+    return DB().from("saved_ideas")
       .insert({ user_id: userId, ...idea })
       .select()
       .single();
   },
 
   async updateNote(ideaId, note) {
-    if (!DB) return { error: null };
-    return DB.from("saved_ideas").update({ note }).eq("id", ideaId);
+    if (!DB()) return { error: null };
+    return DB().from("saved_ideas").update({ note }).eq("id", ideaId);
   },
 
   async remove(ideaId) {
-    if (!DB) return { error: null };
-    return DB.from("saved_ideas").delete().eq("id", ideaId);
+    if (!DB()) return { error: null };
+    return DB().from("saved_ideas").delete().eq("id", ideaId);
   },
 };
 
@@ -182,18 +318,40 @@ function useSupabaseAuth() {
   const [loading, setLoading]   = React.useState(true);
 
   React.useEffect(() => {
-    // 초기 세션 확인
-    Auth.getSession().then(({ data }) => {
-      const session = data?.session;
-      if (session?.user) _hydrateUser(session.user);
-      setLoading(false);
-    });
+    let subscription = { unsubscribe: () => {} };
 
-    // 세션 변화 구독
-    const { data: { subscription } } = Auth.onAuthStateChange((_event, session) => {
-      if (session?.user) _hydrateUser(session.user);
-      else setSupaUser(null);
-    });
+    (async () => {
+      if (typeof window.waitForSsatisConfig === "function") {
+        await window.waitForSsatisConfig();
+      }
+
+      const { data } = await Auth.getSession();
+      const session = data?.session;
+      if (session?.user) {
+        const u = session.user;
+        if (u.sub || (u.id && !u.user_metadata)) {
+          setSupaUser({
+            id: u.sub || u.id,
+            email: u.email,
+            name: u.name,
+            plan: "Free",
+            avatar: u.picture || u.avatar || null,
+          });
+          setLoading(false);
+        } else {
+          await _hydrateUser(session.user);
+          setLoading(false);
+        }
+      } else {
+        setLoading(false);
+      }
+
+      const sub = Auth.onAuthStateChange((_event, nextSession) => {
+        if (nextSession?.user) _hydrateUser(nextSession.user);
+        else setSupaUser(null);
+      });
+      subscription = sub?.data?.subscription || subscription;
+    })();
 
     return () => subscription.unsubscribe();
   }, []);
@@ -211,11 +369,20 @@ function useSupabaseAuth() {
   }
 
   async function signInWithGoogle() {
-    const { error, mock } = await Auth.signInWithGoogle();
-    if (mock) {
-      // Supabase 미연결 시 목 로그인
-      setSupaUser({ id: "mock", email: "demo@ssatis.app", name: "민지", plan: "Free", avatar: null });
+    if (typeof window.waitForSsatisConfig === "function") {
+      await window.waitForSsatisConfig();
     }
+
+    if (!DB()) {
+      showToast("Supabase가 설정되지 않았습니다.", "error");
+      return;
+    }
+
+    // Supabase OAuth 리다이렉트 (Google Cloud Console에 Supabase 콜백 URL만 등록하면 됨)
+    const { error } = await DB().auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
     if (error) showToast("로그인 실패: " + error.message, "error");
   }
 
@@ -234,4 +401,5 @@ Object.assign(window, {
   SupaReports: Reports,
   SupaSavedIdeas: SavedIdeasDB,
   useSupabaseAuth,
+  decodeGoogleJwt: _decodeGoogleJwt,
 });

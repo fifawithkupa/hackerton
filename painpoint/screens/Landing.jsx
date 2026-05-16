@@ -13,8 +13,9 @@ function Landing({ onSearch, user }) {
   };
   const onKeyDown = (e) => { if (e.key === "Enter") submit(); };
 
-  const sourcesOn = Object.values(sources).filter(Boolean).length;
-  const sourcesTotal = D.sources.length;
+  const liveSources = D.sources.filter((s) => s.live);
+  const sourcesOn = liveSources.filter((s) => sources[s.id]).length;
+  const sourcesTotal = liveSources.length;
 
   return (
     <main className="fade-in" style={{
@@ -93,31 +94,44 @@ function Landing({ onSearch, user }) {
           textTransform: "uppercase",
           marginRight: 4,
         }}>
-          수집 소스 · {sourcesOn} / {sourcesTotal}
+          수집 소스 · {sourcesOn} / {sourcesTotal} (실시간)
         </span>
         {D.sources.map(s => {
           const on = sources[s.id];
+          const isLive = Boolean(s.live);
           return (
-            <button key={s.id} onClick={() => toggle(s.id)} style={{
+            <button key={s.id}
+              onClick={() => isLive && toggle(s.id)}
+              disabled={!isLive}
+              title={isLive ? undefined : "준비 중 — 현재는 레딧·유튜브만 실시간 수집됩니다"}
+              style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               height: 34, padding: "0 14px",
               borderRadius: 9999,
-              border: on ? "1px solid var(--color-label-strong)" : "1px solid var(--pp-line)",
-              background: on ? "var(--color-label-strong)" : "#fff",
-              color: on ? "#fff" : "var(--pp-ink-soft)",
+              border: on && isLive ? "1px solid var(--color-label-strong)" : "1px solid var(--pp-line)",
+              background: on && isLive ? "var(--color-label-strong)" : "#fff",
+              color: !isLive ? "var(--pp-ink-dim)" : on ? "#fff" : "var(--pp-ink-soft)",
               font: "600 13px/1 var(--font-base)",
               letterSpacing: "0.005em",
-              cursor: "pointer",
+              cursor: isLive ? "pointer" : "not-allowed",
+              opacity: isLive ? 1 : 0.55,
               transition: "all 150ms ease-out",
             }}>
               <SourceGlyph id={s.id} size={18} />
               {s.name}
-              {!s.free && (
+              {!isLive && (
+                <span style={{
+                  font: "700 9px/1 var(--font-base)",
+                  letterSpacing: "0.06em",
+                  color: "var(--pp-ink-dim)",
+                }}>준비 중</span>
+              )}
+              {isLive && !s.free && (
                 <span style={{
                   font: "700 9px/1 var(--font-base)",
                   letterSpacing: "0.06em",
                   color: on ? "rgba(255,255,255,0.6)" : "var(--pp-ink-dim)",
-                }}>PRO</span>
+                }}>API</span>
               )}
             </button>
           );

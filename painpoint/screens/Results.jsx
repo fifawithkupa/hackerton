@@ -1,11 +1,20 @@
 // Results — header + tabs shell
-function Results({ params, user, onBack }) {
-  const D = window.PP_DATA.result;
+function Results({ params, analysisResult, user, onBack }) {
+  const fallback = window.PP_DATA.result;
+  const D = React.useMemo(() => {
+    if (analysisResult) return analysisResult;
+    return { ...fallback, keyword: params.keyword || fallback.keyword };
+  }, [analysisResult, params.keyword]);
+
   const [tab, setTab] = React.useState("painpoints");
-  const [selectedIdea, setSelectedIdea] = React.useState(D.ideas[0].id);
+  const [selectedIdea, setSelectedIdea] = React.useState(D.ideas[0]?.id || null);
   const [savedIdeas, setSavedIdeas] = React.useState({});
   const [reportSaved, setReportSaved] = React.useState(false);
   const [dbReportId, setDbReportId] = React.useState(null);
+
+  React.useEffect(() => {
+    setSelectedIdea(D.ideas[0]?.id);
+  }, [D]);
 
   // 로그인 상태면 Supabase에 리포트 자동 저장
   React.useEffect(() => {
@@ -20,7 +29,7 @@ function Results({ params, user, onBack }) {
     }).then(({ data, error }) => {
       if (!error && data) setDbReportId(data.id);
     });
-  }, [user?.id]);
+  }, [user?.id, D]);
 
   const toggleSaved = (id) => {
     setSavedIdeas(s => {
@@ -51,11 +60,23 @@ function Results({ params, user, onBack }) {
     setTimeout(() => window.print(), 300);
   };
 
+  const hasIdeas = D.ideas.length > 0;
+  const collectedSources = React.useMemo(() => {
+    const fromPp = window.PP_DATA?.sources;
+    if (Array.isArray(fromPp) && fromPp.length) return fromPp;
+    return (D.log || []).map((l) => ({
+      id: l.id,
+      name: l.src,
+      posts: l.n,
+    }));
+  }, [D.log]);
   const tabs = [
-    { id: "painpoints",   label: "페인포인트",      count: D.painpoints.length },
-    { id: "ideas",        label: "아이디어",        count: D.ideas.length },
-    { id: "competitors",  label: "경쟁자·차별점",  count: D.ideas.reduce((a, i) => a + i.competitors.length, 0) },
-    { id: "report",       label: "리포트" },
+    { id: "painpoints",  label: "페인포인트",     count: D.painpoints.length },
+    ...(hasIdeas ? [
+      { id: "ideas",       label: "아이디어",       count: D.ideas.length },
+      { id: "competitors", label: "경쟁자·차별점", count: D.ideas.reduce((a, i) => a + i.competitors.length, 0) },
+    ] : []),
+    { id: "report",      label: "리포트" },
   ];
 
   return (
@@ -119,6 +140,45 @@ function Results({ params, user, onBack }) {
             <Stat label="생성된 아이디어" value={D.ideas.length} />
             <Stat label="조사된 경쟁자" value={D.ideas.reduce((a,i)=>a+i.competitors.length, 0)} />
           </div>
+          {collectedSources.length > 0 && (
+            <div style={{
+              marginTop: 16,
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 8,
+            }}>
+              <span style={{
+                font: "600 12px/1 var(--font-base)",
+                color: "var(--pp-ink-dim)",
+                letterSpacing: "0.02em",
+                textTransform: "uppercase",
+                marginRight: 4,
+              }}>
+                수집 소스
+              </span>
+              {collectedSources.map((s) => (
+                <span key={s.id} style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  height: 30,
+                  padding: "0 12px",
+                  borderRadius: 9999,
+                  border: "1px solid var(--pp-line)",
+                  background: "var(--pp-surface-soft)",
+                  font: "600 12px/1 var(--font-base)",
+                  color: "var(--pp-ink)",
+                }}>
+                  <SourceGlyph id={s.id} size={16} />
+                  {s.name}
+                  <span className="tnum" style={{ color: "var(--pp-ink-soft)" }}>
+                    {(s.posts ?? 0).toLocaleString()}건
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -153,7 +213,7 @@ function Results({ params, user, onBack }) {
       {tab === "ideas"       && <Ideas       data={D} saved={savedIdeas} onToggleSave={toggleSaved}
                                               onPickCompetitors={(id) => { setSelectedIdea(id); setTab("competitors"); }} />}
       {tab === "competitors" && <Competitors data={D} selectedId={selectedIdea} onSelect={setSelectedIdea} />}
-      {tab === "report"      && <Report      data={D} />}
+      {tab === "report"      && <Report      data={D} user={user} />}
     </main>
   );
 }

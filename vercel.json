@@ -1,0 +1,11 @@
+{
+  "outputDirectory": "painpoint",
+  "functions": {
+    "api/**/*.mjs": {
+      "maxDuration": 60
+    }
+  },
+  "rewrites": [
+    { "source": "/payment/(.*)", "destination": "/index.html" }
+  ]
+}

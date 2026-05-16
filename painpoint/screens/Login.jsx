@@ -1,15 +1,23 @@
 // Google-only login screen
 function Login({ onGoogleLogin, onBack }) {
   const [loading, setLoading] = React.useState(false);
+  const [ready, setReady]     = React.useState(false);
 
-  const doLogin = async () => {
+  React.useEffect(() => {
+    (async () => {
+      if (typeof window.waitForSsatisConfig === "function") {
+        await window.waitForSsatisConfig();
+      }
+      setReady(true);
+    })();
+  }, []);
+
+  const handleLogin = async () => {
     setLoading(true);
     try {
       await onGoogleLogin();
-      // Supabase OAuth는 리다이렉트 → 페이지 reload 후 세션 복구
-      // 목 모드에서는 useSupabaseAuth가 supaUser를 세팅해 app.jsx가 처리
     } catch (e) {
-      showToast("로그인 중 오류가 발생했습니다", "error");
+      showToast("로그인 오류: " + e.message, "error");
       setLoading(false);
     }
   };
@@ -97,22 +105,40 @@ function Login({ onGoogleLogin, onBack }) {
           별도 가입 없이 Google 계정으로 바로 시작합니다.
         </p>
 
-        <button onClick={doLogin} disabled={loading} style={{
-          all: "unset", cursor: loading ? "wait" : "pointer",
-          height: 52,
-          background: "#fff",
-          border: "1px solid var(--pp-line-strong)",
-          borderRadius: 12,
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-          font: "600 15px/1 var(--font-base)",
-          color: "var(--pp-ink)",
-          transition: "background 150ms ease-out",
-          opacity: loading ? 0.7 : 1,
-        }}
-        onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "var(--pp-surface-soft)")}
-        onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}>
-          <GoogleG />
-          {loading ? "Google로 로그인 중…" : "Google 계정으로 계속하기"}
+        <button
+          type="button"
+          onClick={handleLogin}
+          disabled={loading || !ready}
+          className="pp-btn"
+          data-variant="outline"
+          style={{
+            width: "100%",
+            minHeight: 52,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            font: "600 15px/1 var(--font-base)",
+            opacity: (!ready || loading) ? 0.6 : 1,
+          }}
+        >
+          {loading ? (
+            <>
+              <div style={{
+                width: 18, height: 18, borderRadius: "50%",
+                border: "2px solid var(--pp-ink-dim)",
+                borderTopColor: "transparent",
+                animation: "spin 0.8s linear infinite",
+                flexShrink: 0,
+              }} />
+              Google로 로그인 중…
+            </>
+          ) : (
+            <>
+              <GoogleG />
+              Google로 계속하기
+            </>
+          )}
         </button>
 
         <div style={{

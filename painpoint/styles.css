@@ -21,7 +21,7 @@
   --pp-neg:           var(--color-status-negative);
 
   --font-display: "Wanted Sans Variable", "Pretendard", -apple-system, sans-serif;
-  --font-base:    "Pretendard JP", "Pretendard", -apple-system, sans-serif;
+  --font-base:    "Pretendard", "Pretendard JP", -apple-system, "Malgun Gothic", sans-serif;
   --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -224,3 +224,4 @@ a { color: inherit; }
   main { padding: 0 !important; max-width: 100% !important; }
   .pp-card, .pp-card-soft { box-shadow: none !important; border: 1px solid #e0e0e0 !important; }
 }
+@keyframes spin { to { transform: rotate(360deg); } }

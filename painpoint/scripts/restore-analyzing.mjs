@@ -1,11 +1,22 @@
-// Analyzing — Reddit + 네이버 실시간 수집 + Gemini 분석 (통합)
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const out = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "screens",
+  "Analyzing.jsx",
+);
+
+const jsx = `// Analyzing — Reddit 실시간 수집 + Gemini 분석 (통합)
 const ANALYZE_STEPS = [
-  { id: 1, t: "키워드 분석",       d: "동의어·관련 산업 용어 확장" },
-  { id: 2, t: "커뮤니티 수집",     d: "Reddit + 네이버(블로그·카페·지식인) 실시간 수집" },
+  { id: 1, t: "키워드 분석",     d: "동의어·관련 산업 용어 확장" },
+  { id: 2, t: "커뮤니티 수집",   d: "Reddit + YouTube 댓글 실시간 수집" },
   { id: 3, t: "전처리·노이즈 제거", d: "스팸·광고·중복 글 제거" },
   { id: 4, t: "Gemini 클러스터링", d: "수집 글을 3~5개 페인포인트로 압축" },
-  { id: 5, t: "아이디어 생성",     d: "각 페인포인트별 카드 — 타깃·수익·MVP" },
-  { id: 6, t: "경쟁자·시장 판정",  d: "Gemini — 경쟁자 3곳 + 블루오션/틈새/레드오션" },
+  { id: 5, t: "아이디어 생성",   d: "각 페인포인트별 카드 — 타깃·수익·MVP" },
+  { id: 6, t: "경쟁자·시장 판정", d: "Gemini — 경쟁자 3곳 + 블루오션/틈새/레드오션" },
 ];
 
 function ppSleep(ms) {
@@ -14,7 +25,7 @@ function ppSleep(ms) {
 
 function Analyzing({ params, onFinish, onCancel }) {
   const fallbackLog = window.PP_DATA?.result?.log || [];
-  const clientAiConfigured =
+  const useAi =
     typeof window.hasOpenAiConfigured === "function" && window.hasOpenAiConfigured();
 
   const [elapsed, setElapsed] = React.useState(0);
@@ -22,7 +33,7 @@ function Analyzing({ params, onFinish, onCancel }) {
   const [log, setLog] = React.useState(fallbackLog);
   const [logIdx, setLogIdx] = React.useState(0);
   const [postCount, setPostCount] = React.useState(0);
-  const [collectDone, setCollectDone] = React.useState(false);
+  const [redditDone, setRedditDone] = React.useState(false);
   const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
@@ -39,41 +50,29 @@ function Analyzing({ params, onFinish, onCancel }) {
         if (cancelled) return;
         setStepIdx(1);
 
-        // sources 파라미터 빌드
-        const enabledSources = params.sources && typeof params.sources === "object"
-          ? Object.entries(params.sources).filter(([, on]) => on).map(([id]) => id)
-          : ["reddit", "naver"];
-        const sourcesParam = enabledSources.join(",") || "reddit,naver,youtube";
-
         const searchRes = await fetch(
-          `/api/search?q=${encodeURIComponent(params.keyword)}&sources=${encodeURIComponent(sourcesParam)}`,
+          \`/api/search?q=\${encodeURIComponent(params.keyword)}\`,
         );
         const searchData = await searchRes.json();
         if (!searchRes.ok || searchData.error) {
-          throw new Error(searchData.error || `수집 실패 (${searchRes.status})`);
+          throw new Error(searchData.error || \`Reddit 수집 실패 (\${searchRes.status})\`);
         }
 
-        // 원본 목 아이디어 보존 (Gemini 실패 시 fallback용)
-        const _mockIdeas = window.PP_DATA?.result?.ideas || [];
-        window.PP_DATA = {
-          ...searchData,
-          result: {
-            ...searchData.result,
-            ideas: _mockIdeas,  // 검색 후에도 mock 아이디어 유지
-          },
-        };
+        window.PP_DATA = searchData;
         window._ssatisCollectedPosts = searchData.collectedPosts || [];
         const n = searchData.result?.totalCollected || 0;
+        const collectLog = searchData.result?.log || [];
+        const hasYoutube = collectLog.some((l) => l.id === "youtube" && l.n > 0);
         window._ssatisCollectMeta = {
-          source: sourcesParam,
+          source: hasYoutube ? "multi" : "reddit",
           totalCollected: n,
           afterFilter: searchData.result?.afterFilter ?? n,
-          log: searchData.result?.log || [],
+          log: collectLog,
         };
         setPostCount(n);
-        setLog(searchData.result?.log || fallbackLog);
-        setLogIdx(searchData.result?.log?.length || 1);
-        setCollectDone(true);
+        setLog(collectLog.length ? collectLog : fallbackLog);
+        setLogIdx(Math.max(1, collectLog.length));
+        setRedditDone(true);
         if (cancelled) return;
 
         setStepIdx(2);
@@ -81,32 +80,24 @@ function Analyzing({ params, onFinish, onCancel }) {
         if (cancelled) return;
         setStepIdx(3);
 
-        const health =
-          typeof window.checkAnalysisServer === "function"
-            ? await window.checkAnalysisServer()
-            : { ok: true, keyLoaded: clientAiConfigured };
-        const useAi = clientAiConfigured && health.ok && health.keyLoaded;
-
-        if (clientAiConfigured && !useAi && !cancelled) {
-          if (health.reason === "old_server" || health.reason === "health_failed") {
-            showToast(
-              "분석 API가 응답하지 않습니다. Vercel 배포 시 GEMINI_API_KEY 환경변수를 확인하세요.",
-              "default",
-            );
-          } else if (health.reason === "offline") {
-            showToast(
-              "분석 API에 연결할 수 없습니다. 배포 URL에서 /api/ssatis-health 를 확인하세요.",
-              "default",
-            );
-          } else if (!health.keyLoaded) {
-            showToast(
-              "서버에 Gemini 키가 없습니다. Vercel Settings → Environment Variables에 GEMINI_API_KEY를 추가하세요.",
-              "default",
-            );
-          }
-        }
-
         if (useAi) {
+          const health =
+            typeof window.checkAnalysisServer === "function"
+              ? await window.checkAnalysisServer()
+              : { ok: true };
+          if (!health.ok && !cancelled) {
+            if (health.reason === "old_server" || health.reason === "health_failed") {
+              showToast(
+                "분석 서버가 옛 버전입니다. node painpoint/dev-server.mjs 를 다시 실행하세요.",
+                "default",
+              );
+            } else if (health.reason === "offline") {
+              showToast(
+                "분석 서버에 연결할 수 없습니다. node painpoint/dev-server.mjs 실행 후 8787 포트로 접속하세요.",
+                "default",
+              );
+            }
+          }
 
           await ppSleep(300);
           if (cancelled) return;
@@ -122,7 +113,7 @@ function Analyzing({ params, onFinish, onCancel }) {
           if (cancelled) return;
 
           if (!result) {
-            showToast("Gemini 결과 없음 — 수집 데이터를 표시합니다", "default");
+            showToast("Gemini 결과 없음 — Reddit 수집 데이터를 표시합니다", "default");
             setStepIdx(ANALYZE_STEPS.length);
             onFinish(null);
             return;
@@ -143,10 +134,10 @@ function Analyzing({ params, onFinish, onCancel }) {
         setError(e.message || String(e));
         showToast(
           (e.message || "수집 실패") +
-            " — /api/search 가 동작하는지, Vercel Functions 로그를 확인하세요.",
+            " — dev-server(node painpoint/dev-server.mjs) 실행 여부를 확인하세요.",
           "default",
         );
-        if (clientAiConfigured) {
+        if (useAi) {
           try {
             setStepIdx(4);
             const result = await window.runPainpointAnalysis(
@@ -174,9 +165,9 @@ function Analyzing({ params, onFinish, onCancel }) {
     return () => {
       cancelled = true;
     };
-  }, [params.keyword, params.sources, clientAiConfigured, onFinish]);
+  }, [params.keyword, params.sources, useAi, onFinish]);
 
-  const totalCollected = collectDone
+  const totalCollected = redditDone
     ? postCount
     : log.slice(0, logIdx).reduce((a, b) => a + (b.n || 0), 0);
 
@@ -256,7 +247,7 @@ function Analyzing({ params, onFinish, onCancel }) {
           color: "var(--color-label-strong)",
         }}
       >
-        "{params.keyword}" 키워드 페인포인트 분석
+        “{params.keyword}” 키워드 페인포인트 분석
       </h1>
 
       <div
@@ -267,7 +258,6 @@ function Analyzing({ params, onFinish, onCancel }) {
           gap: 24,
         }}
       >
-        {/* 분석 단계 */}
         <div className="pp-card" style={{ padding: 28 }}>
           <div
             style={{
@@ -367,7 +357,6 @@ function Analyzing({ params, onFinish, onCancel }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          {/* 실시간 수집량 카드 */}
           <div
             className="pp-card"
             style={{
@@ -407,7 +396,6 @@ function Analyzing({ params, onFinish, onCancel }) {
               건의 불만·고민 수집됨
             </div>
 
-            {/* 소스별 수집량 */}
             <div
               style={{
                 marginTop: 24,
@@ -419,7 +407,7 @@ function Analyzing({ params, onFinish, onCancel }) {
               }}
             >
               {log.slice(0, 3).map((l) => (
-                <div key={l.src + (l.id || "")}>
+                <div key={l.src + l.id}>
                   <div
                     style={{
                       font: "500 11px/1 var(--font-base)",
@@ -433,14 +421,17 @@ function Analyzing({ params, onFinish, onCancel }) {
                     className="tnum"
                     style={{ font: "700 16px/1 var(--font-base)" }}
                   >
-                    {collectDone ? l.n.toLocaleString() : "—"}
+                    {logIdx > log.indexOf(l)
+                      ? l.n.toLocaleString()
+                      : redditDone && l.id === "reddit" && log.length <= 1
+                        ? postCount.toLocaleString()
+                        : "—"}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 수집 로그 터미널 */}
           <div className="pp-card pp-log" style={{ padding: 20, minHeight: 200 }}>
             <div style={{ marginBottom: 8, color: "var(--pp-ink-dim)" }}>
               $ painpoint collect --keyword "{params.keyword}"
@@ -463,13 +454,13 @@ function Analyzing({ params, onFinish, onCancel }) {
                 <span>posts</span>
               </div>
             ))}
-            {!collectDone && !error && (
+            {!redditDone && !error && (
               <div
                 style={{ display: "flex", alignItems: "center", gap: 6 }}
               >
                 <span style={{ color: "var(--pp-pain)" }}>›</span>
                 <SourceGlyph id="reddit" size={14} />
-                <span>레딧 + 네이버 + 유튜브 — "{params.keyword}" 수집 중</span>
+                <span>레딧 — "{params.keyword}" 검색 중</span>
                 <span
                   style={{
                     marginLeft: 4,
@@ -488,3 +479,14 @@ function Analyzing({ params, onFinish, onCancel }) {
 }
 
 window.Analyzing = Analyzing;
+`;
+
+const outText = jsx;
+
+fs.writeFileSync(out, outText, { encoding: "utf8" });
+const check = fs.readFileSync(out, "utf8");
+if (!check.includes("키워드 분석") || check.includes("??? ??")) {
+  console.error("RESTORE FAILED - encoding check");
+  process.exit(1);
+}
+console.log("Restored Analyzing.jsx OK");

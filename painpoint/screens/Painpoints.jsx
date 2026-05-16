@@ -35,12 +35,9 @@ function PainpointCard({ p }) {
   const sevLabel = { high: "심각도 상", mid: "심각도 중", low: "심각도 하" }[p.severity];
   const sevTone  = { high: "pain", mid: "warn", low: "primary" }[p.severity];
   const totalSrc = Object.values(p.sources).reduce((a, b) => a + b, 0);
-  const sourceOrder = ["reddit", "naver", "hackernews", "appstore", "playstore", "trustpilot", "youtube"];
-  const sourceLabel = {
-    reddit: "레딧", naver: "네이버", hackernews: "해커뉴스",
-    appstore: "앱스토어", playstore: "Google Play",
-    trustpilot: "Trustpilot", youtube: "유튜브 댓글",
-  };
+  const sourceOrder = ["reddit", "naver", "youtube"];
+  const platformCount = sourceOrder.filter(id => (p.sources[id] || 0) > 0).length;
+  const sourceLabel = { reddit: "레딧", naver: "네이버", youtube: "유튜브 댓글" };
 
   return (
     <div className="pp-card" style={{ padding: 28 }}>
@@ -96,36 +93,72 @@ function PainpointCard({ p }) {
             marginBottom: 10,
           }}>대표 글 샘플</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {p.samples.map((s, i) => (
-              <a key={i} href={s.link} style={{
+            {p.samples.map((s, i) => {
+              const href =
+                s.link && s.link !== "#" && /^https?:\/\//i.test(s.link) ? s.link : null;
+              const rowStyle = {
                 display: "grid",
                 gridTemplateColumns: "20px 80px 1fr auto",
-                gap: 12, alignItems: "center",
+                gap: 12,
+                alignItems: "center",
                 padding: "10px 14px",
                 borderRadius: 10,
                 background: "var(--pp-surface-soft)",
                 textDecoration: "none",
                 color: "inherit",
                 transition: "background 150ms ease-out",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--color-fill-normal)"}
-              onMouseLeave={e => e.currentTarget.style.background = "var(--pp-surface-soft)"}>
-                <SourceGlyph id={s.src} size={20} />
-                <span style={{
-                  font: "600 12px/1 var(--font-base)",
-                  color: "var(--pp-ink-soft)",
-                }}>{window.SOURCE_BRAND[s.src]?.name || s.src}</span>
-                <span style={{
-                  font: "500 14px/1.4 var(--font-base)",
-                  color: "var(--pp-ink)",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>{s.title}</span>
-                <span className="tnum" style={{
-                  font: "700 12px/1 var(--font-base)",
-                  color: "var(--pp-pain)",
-                }}>↑ {s.up}</span>
-              </a>
-            ))}
+                cursor: href ? "pointer" : "default",
+              };
+              const inner = (
+                <>
+                  <SourceGlyph id={s.src} size={20} />
+                  <span style={{
+                    font: "600 12px/1 var(--font-base)",
+                    color: "var(--pp-ink-soft)",
+                  }}>{window.SOURCE_BRAND[s.src]?.name || s.src}</span>
+                  <span style={{
+                    font: "500 14px/1.4 var(--font-base)",
+                    color: "var(--pp-ink)",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>{s.title}</span>
+                  <span className="tnum" style={{
+                    font: "700 12px/1 var(--font-base)",
+                    color: "var(--pp-pain)",
+                  }}>↑ {s.up}</span>
+                </>
+              );
+              const hoverOn = (e) => {
+                e.currentTarget.style.background = "var(--color-fill-normal)";
+              };
+              const hoverOff = (e) => {
+                e.currentTarget.style.background = "var(--pp-surface-soft)";
+              };
+              if (href) {
+                return (
+                  <a
+                    key={i}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={rowStyle}
+                    onMouseEnter={hoverOn}
+                    onMouseLeave={hoverOff}
+                  >
+                    {inner}
+                  </a>
+                );
+              }
+              return (
+                <div
+                  key={i}
+                  style={rowStyle}
+                  onMouseEnter={hoverOn}
+                  onMouseLeave={hoverOff}
+                >
+                  {inner}
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -152,9 +185,7 @@ function PainpointCard({ p }) {
                   <div key={id} style={{
                     width: `${pct}%`,
                     background: {
-                      reddit: "#FF4500", naver: "#03C75A", hackernews: "#FF6600",
-                      appstore: "#0080FF", playstore: "#4285F4",
-                      trustpilot: "#00B67A", youtube: "#FF0000",
+                      reddit: "#FF4500", naver: "#03C75A", youtube: "#FF0000",
                     }[id],
                   }} />
                 );
