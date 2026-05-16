@@ -43,6 +43,7 @@ function buildCombinedPPData(keyword, redditPosts, naverPosts, youtubePosts = []
 
   const total = redditPosts.length + naverPosts.length + youtubePosts.length;
   const collectedPosts = interleaved.map(p => ({
+    text: [p.title, p.selftext].filter(Boolean).join(" — ").slice(0, 500),
     title: p.title, url: p.url, source: p.source,
     selftext: p.selftext || "", score: p.score || 0,
   }));
