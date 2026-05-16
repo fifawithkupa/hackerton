@@ -33,6 +33,7 @@ import {
   normalizeAnalysisResult,
 
 } from "./ssatis-ai-core.mjs";
+import { searchReddit, buildRedditPPData } from "./reddit-search.mjs";
 
 
 
@@ -184,6 +185,36 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  const pathname = req.url.split("?")[0];
+
+  if (req.method === "GET" && pathname === "/api/search") {
+    try {
+      const q = new URL(req.url, `http://127.0.0.1:${PORT}`).searchParams.get("q");
+      const keyword = String(q || "").trim();
+      if (!keyword) {
+        send(res, 400, JSON.stringify({ error: "keyword required" }));
+        return;
+      }
+      const posts = await searchReddit(keyword);
+      if (!posts.length) {
+        send(
+          res,
+          404,
+          JSON.stringify({
+            error: `Reddit에서 "${keyword}" 관련 글을 찾지 못했습니다. 다른 키워드를 시도해 보세요.`,
+          }),
+        );
+        return;
+      }
+      const { ppData, collectedPosts } = buildRedditPPData(keyword, posts);
+      send(res, 200, JSON.stringify({ ...ppData, collectedPosts }));
+    } catch (e) {
+      console.error("[api/search]", e);
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+
   if (req.method === "POST" && req.url.startsWith("/api/ssatis-analyze")) {
 
     try {
@@ -219,6 +250,9 @@ const server = http.createServer(async (req, res) => {
       const keyword = String(body.keyword || "").trim();
 
       const posts = Array.isArray(body.posts) ? body.posts : [];
+      const collectMeta = body.collectMeta && typeof body.collectMeta === "object"
+        ? body.collectMeta
+        : null;
 
       if (!posts.length) {
 
@@ -313,7 +347,7 @@ const server = http.createServer(async (req, res) => {
 
 
 
-      const result = normalizeAnalysisResult(parsed, keyword, posts);
+      const result = normalizeAnalysisResult(parsed, keyword, posts, collectMeta);
 
       send(res, 200, JSON.stringify(result));
 

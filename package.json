@@ -2,6 +2,7 @@
   "name": "hackerton",
   "private": true,
   "scripts": {
-    "dev:ssatis": "node painpoint/dev-server.mjs"
+    "dev:ssatis": "node painpoint/dev-server.mjs",
+    "restore:analyzing": "node painpoint/scripts/restore-analyzing.mjs"
   }
 }

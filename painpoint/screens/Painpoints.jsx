@@ -96,36 +96,72 @@ function PainpointCard({ p }) {
             marginBottom: 10,
           }}>대표 글 샘플</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {p.samples.map((s, i) => (
-              <a key={i} href={s.link} style={{
+            {p.samples.map((s, i) => {
+              const href =
+                s.link && s.link !== "#" && /^https?:\/\//i.test(s.link) ? s.link : null;
+              const rowStyle = {
                 display: "grid",
                 gridTemplateColumns: "20px 80px 1fr auto",
-                gap: 12, alignItems: "center",
+                gap: 12,
+                alignItems: "center",
                 padding: "10px 14px",
                 borderRadius: 10,
                 background: "var(--pp-surface-soft)",
                 textDecoration: "none",
                 color: "inherit",
                 transition: "background 150ms ease-out",
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = "var(--color-fill-normal)"}
-              onMouseLeave={e => e.currentTarget.style.background = "var(--pp-surface-soft)"}>
-                <SourceGlyph id={s.src} size={20} />
-                <span style={{
-                  font: "600 12px/1 var(--font-base)",
-                  color: "var(--pp-ink-soft)",
-                }}>{window.SOURCE_BRAND[s.src]?.name || s.src}</span>
-                <span style={{
-                  font: "500 14px/1.4 var(--font-base)",
-                  color: "var(--pp-ink)",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>{s.title}</span>
-                <span className="tnum" style={{
-                  font: "700 12px/1 var(--font-base)",
-                  color: "var(--pp-pain)",
-                }}>↑ {s.up}</span>
-              </a>
-            ))}
+                cursor: href ? "pointer" : "default",
+              };
+              const inner = (
+                <>
+                  <SourceGlyph id={s.src} size={20} />
+                  <span style={{
+                    font: "600 12px/1 var(--font-base)",
+                    color: "var(--pp-ink-soft)",
+                  }}>{window.SOURCE_BRAND[s.src]?.name || s.src}</span>
+                  <span style={{
+                    font: "500 14px/1.4 var(--font-base)",
+                    color: "var(--pp-ink)",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>{s.title}</span>
+                  <span className="tnum" style={{
+                    font: "700 12px/1 var(--font-base)",
+                    color: "var(--pp-pain)",
+                  }}>↑ {s.up}</span>
+                </>
+              );
+              const hoverOn = (e) => {
+                e.currentTarget.style.background = "var(--color-fill-normal)";
+              };
+              const hoverOff = (e) => {
+                e.currentTarget.style.background = "var(--pp-surface-soft)";
+              };
+              if (href) {
+                return (
+                  <a
+                    key={i}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={rowStyle}
+                    onMouseEnter={hoverOn}
+                    onMouseLeave={hoverOff}
+                  >
+                    {inner}
+                  </a>
+                );
+              }
+              return (
+                <div
+                  key={i}
+                  style={rowStyle}
+                  onMouseEnter={hoverOn}
+                  onMouseLeave={hoverOff}
+                >
+                  {inner}
+                </div>
+              );
+            })}
           </div>
         </div>
 

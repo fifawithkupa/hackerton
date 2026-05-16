@@ -1,6 +1,7 @@
 /**
  * Node 전용 — Google Gemini generateContent 요청 본문 + 응답 정규화
  */
+import { redditPostUrl } from "./reddit-search.mjs";
 
 /** 환경변수 GEMINI_MODEL 또는 config.js geminiModel 로 재정의 가능 */
 export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
@@ -194,7 +195,15 @@ function toneForVerdict(verdict) {
   return "violet";
 }
 
-export function normalizeAnalysisResult(raw, keyword, posts, logLines = DEFAULT_ANALYSIS_LOG) {
+/**
+ * @param {object|null} collectMeta — Reddit 실수집 메타 { source:'reddit', totalCollected, log }
+ */
+export function normalizeAnalysisResult(raw, keyword, posts, collectMeta = null) {
+  const redditOnly = collectMeta?.source === "reddit";
+  const logLines =
+    Array.isArray(collectMeta?.log) && collectMeta.log.length > 0
+      ? collectMeta.log
+      : DEFAULT_ANALYSIS_LOG;
   const painRaw = Array.isArray(raw.painpoints) ? raw.painpoints.slice(0, 5) : [];
   if (painRaw.length < 3) throw new Error("모델 응답: 페인포인트가 3개 미만입니다.");
 
@@ -209,7 +218,7 @@ export function normalizeAnalysisResult(raw, keyword, posts, logLines = DEFAULT_
   });
 
   const srcKeys = ["reddit", "naver", "hackernews", "appstore", "playstore", "trustpilot", "youtube"];
-  const sampleSrc = ["reddit", "naver", "hackernews"];
+  const sampleSrc = redditOnly ? ["reddit", "reddit", "reddit"] : ["reddit", "naver", "hackernews"];
 
   const painpoints = painRaw.map((p, idx) => {
     const id = `pp${idx + 1}`;
@@ -217,16 +226,34 @@ export function normalizeAnalysisResult(raw, keyword, posts, logLines = DEFAULT_
     const empathy = Math.max(120, 980 - idx * 140);
     const comments = Math.round(empathy * (2.2 + idx * 0.15));
     const sev = ["high", "mid", "mid", "low", "low"][idx] || "mid";
-    const parts = splitInt(empathy, srcKeys.length);
-    const sources = Object.fromEntries(srcKeys.map((k, i) => [k, parts[i]]));
+    const sources = redditOnly
+      ? { reddit: empathy }
+      : Object.fromEntries(
+          srcKeys.map((k, i) => [k, splitInt(empathy, srcKeys.length)[i]]),
+        );
 
     const titles = Array.isArray(p.sampleTitles) ? p.sampleTitles.map(String) : [];
-    const samples = [0, 1, 2].map((i) => ({
-      src: sampleSrc[i % sampleSrc.length],
-      title: titles[i] || `${keyword} 관련 불만 사례 ${i + 1}`,
-      up: 520 - i * 90,
-      link: "#",
-    }));
+    const redditSlice = posts.slice(idx * 3, idx * 3 + 3);
+    const samples = [0, 1, 2].map((i) => {
+      const fromPost = redditSlice[i];
+      const src = sampleSrc[i % sampleSrc.length];
+      const titleFromPost = fromPost?.text
+        ? String(fromPost.text).split(" — ")[0].slice(0, 120)
+        : "";
+      let link = "#";
+      if (src === "reddit" && fromPost) {
+        link =
+          (fromPost.url && fromPost.url !== "#" ? fromPost.url : null) ||
+          redditPostUrl(fromPost) ||
+          "#";
+      }
+      return {
+        src,
+        title: titleFromPost || titles[i] || `${keyword} 관련 불만 사례 ${i + 1}`,
+        up: fromPost?.score ?? (fromPost ? 0 : 520 - i * 90),
+        link,
+      };
+    });
 
     return {
       id,
@@ -268,9 +295,15 @@ export function normalizeAnalysisResult(raw, keyword, posts, logLines = DEFAULT_
     };
   });
 
-  const totalCollected = Number(raw.totalCollected) || Math.min(8000, posts.length * 48 + 600);
+  const totalCollected =
+    typeof collectMeta?.totalCollected === "number"
+      ? collectMeta.totalCollected
+      : Number(raw.totalCollected) || posts.length;
   const afterFilter =
-    Number(raw.afterFilter) || Math.min(totalCollected - 50, Math.round(totalCollected * 0.82));
+    typeof collectMeta?.afterFilter === "number"
+      ? collectMeta.afterFilter
+      : Number(raw.afterFilter) ||
+        Math.max(1, Math.min(totalCollected, Math.round(totalCollected * 0.85)));
 
   const topVerdict = normalizeVerdictLabel(raw.verdict || ideas[0]?.verdict);
   const topTone = verdictToneSet.has(raw.verdictTone) ? raw.verdictTone : toneForVerdict(topVerdict);

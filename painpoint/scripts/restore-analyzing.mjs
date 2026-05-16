@@ -1,4 +1,15 @@
-// Analyzing — Reddit 실시간 수집 + Gemini 분석 (통합)
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const out = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "screens",
+  "Analyzing.jsx",
+);
+
+const jsx = `// Analyzing — Reddit 실시간 수집 + Gemini 분석 (통합)
 const ANALYZE_STEPS = [
   { id: 1, t: "키워드 분석",     d: "동의어·관련 산업 용어 확장" },
   { id: 2, t: "커뮤니티 수집",   d: "Reddit에서 불만·고민 글 실시간 수집" },
@@ -40,11 +51,11 @@ function Analyzing({ params, onFinish, onCancel }) {
         setStepIdx(1);
 
         const searchRes = await fetch(
-          `/api/search?q=${encodeURIComponent(params.keyword)}`,
+          \`/api/search?q=\${encodeURIComponent(params.keyword)}\`,
         );
         const searchData = await searchRes.json();
         if (!searchRes.ok || searchData.error) {
-          throw new Error(searchData.error || `Reddit 수집 실패 (${searchRes.status})`);
+          throw new Error(searchData.error || \`Reddit 수집 실패 (\${searchRes.status})\`);
         }
 
         window.PP_DATA = searchData;
@@ -466,3 +477,14 @@ function Analyzing({ params, onFinish, onCancel }) {
 }
 
 window.Analyzing = Analyzing;
+`;
+
+const outText = jsx;
+
+fs.writeFileSync(out, outText, { encoding: "utf8" });
+const check = fs.readFileSync(out, "utf8");
+if (!check.includes("키워드 분석") || check.includes("??? ??")) {
+  console.error("RESTORE FAILED - encoding check");
+  process.exit(1);
+}
+console.log("Restored Analyzing.jsx OK");

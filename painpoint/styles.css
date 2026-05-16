@@ -21,7 +21,7 @@
   --pp-neg:           var(--color-status-negative);
 
   --font-display: "Wanted Sans Variable", "Pretendard", -apple-system, sans-serif;
-  --font-base:    "Pretendard JP", "Pretendard", -apple-system, sans-serif;
+  --font-base:    "Pretendard", "Pretendard JP", -apple-system, "Malgun Gothic", sans-serif;
   --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 

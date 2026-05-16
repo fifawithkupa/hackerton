@@ -55,12 +55,12 @@
 
 
     const posts =
-
-      typeof window.getCollectedPostsForAnalysis === "function"
-
+      (Array.isArray(window._ssatisCollectedPosts) && window._ssatisCollectedPosts.length
+        ? window._ssatisCollectedPosts
+        : null) ||
+      (typeof window.getCollectedPostsForAnalysis === "function"
         ? window.getCollectedPostsForAnalysis(keyword, sources)
-
-        : [];
+        : []);
 
 
 
@@ -94,7 +94,11 @@
 
         headers: { "Content-Type": "application/json" },
 
-        body: JSON.stringify({ keyword, posts }),
+        body: JSON.stringify({
+          keyword,
+          posts,
+          collectMeta: window._ssatisCollectMeta || null,
+        }),
 
       });
 
