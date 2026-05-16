@@ -8,7 +8,9 @@
 
  *
 
- * API 키: 환경변수 GEMINI_API_KEY 또는 painpoint/config.js 의 geminiApiKey / openaiApiKey(호환)
+ * API 키: 환경변수 또는 painpoint/config.js
+ *   - GEMINI_API_KEY / geminiApiKey / openaiApiKey
+ *   - YOUTUBE_API_KEY / youtubeApiKey
 
  */
 
@@ -33,7 +35,9 @@ import {
   normalizeAnalysisResult,
 
 } from "./ssatis-ai-core.mjs";
-import { searchReddit, buildRedditPPData } from "./reddit-search.mjs";
+import { searchReddit } from "./reddit-search.mjs";
+import { searchYoutubeComments } from "./youtube-search.mjs";
+import { mergeCollectPPData } from "./collect-merge.mjs";
 
 
 
@@ -55,12 +59,16 @@ function loadConfigJs() {
       key === "YOUR_GEMINI_API_KEY" ||
       key === "YOUR_OPENAI_API_KEY";
     const geminiModel = raw.match(/geminiModel:\s*"([^"]*)"/)?.[1]?.trim();
+    const yt = raw.match(/youtubeApiKey:\s*"([^"]*)"/)?.[1]?.trim() ?? "";
+    const ytPlaceholder =
+      /^YOUR_YOUTUBE/i.test(yt) || yt === "" || yt === "YOUR_YOUTUBE_API_KEY";
     return {
       key: !placeholder && key.length >= 12 ? key : null,
       geminiModel: geminiModel || null,
+      youtubeKey: !ytPlaceholder && yt.length >= 12 ? yt : null,
     };
   } catch {
-    return { key: null, geminiModel: null };
+    return { key: null, geminiModel: null, youtubeKey: null };
   }
 }
 
@@ -126,6 +134,12 @@ function loadGeminiKey() {
   return loadConfigJs().key;
 }
 
+function loadYoutubeKey() {
+  const env = process.env.YOUTUBE_API_KEY?.trim();
+  if (env) return env;
+  return loadConfigJs().youtubeKey;
+}
+
 
 
 function readBody(req) {
@@ -180,6 +194,7 @@ const server = http.createServer(async (req, res) => {
         provider: "gemini",
         model: resolveGeminiModel(),
         keyLoaded: Boolean(loadGeminiKey()),
+        youtubeKeyLoaded: Boolean(loadYoutubeKey()),
       }),
     );
     return;
@@ -195,18 +210,35 @@ const server = http.createServer(async (req, res) => {
         send(res, 400, JSON.stringify({ error: "keyword required" }));
         return;
       }
-      const posts = await searchReddit(keyword);
-      if (!posts.length) {
+      const ytKey = loadYoutubeKey();
+      const [redditPosts, youtubeComments] = await Promise.all([
+        searchReddit(keyword),
+        ytKey
+          ? searchYoutubeComments(keyword, ytKey).catch((e) => {
+              console.warn("[api/search] YouTube:", e.message);
+              return [];
+            })
+          : Promise.resolve([]),
+      ]);
+
+      if (!redditPosts.length && !youtubeComments.length) {
         send(
           res,
           404,
           JSON.stringify({
-            error: `Reddit에서 "${keyword}" 관련 글을 찾지 못했습니다. 다른 키워드를 시도해 보세요.`,
+            error: ytKey
+              ? `Reddit·YouTube에서 "${keyword}" 관련 글을 찾지 못했습니다.`
+              : `Reddit에서 "${keyword}" 관련 글을 찾지 못했습니다. config.js에 youtubeApiKey를 넣으면 YouTube 댓글도 수집합니다.`,
           }),
         );
         return;
       }
-      const { ppData, collectedPosts } = buildRedditPPData(keyword, posts);
+
+      const { ppData, collectedPosts } = mergeCollectPPData(
+        keyword,
+        redditPosts,
+        youtubeComments,
+      );
       send(res, 200, JSON.stringify({ ...ppData, collectedPosts }));
     } catch (e) {
       console.error("[api/search]", e);
@@ -428,6 +460,7 @@ server.listen(PORT, () => {
   console.log(`Gemini 모델: ${GEMINI_MODEL}`);
 
   console.log(`Gemini 키: ${loadGeminiKey() ? "로드됨" : "없음 — GEMINI_API_KEY 또는 config.js 확인"}`);
+  console.log(`YouTube 키: ${loadYoutubeKey() ? "로드됨" : "없음 — YOUTUBE_API_KEY 또는 config.js youtubeApiKey"}`);
 
 });
 

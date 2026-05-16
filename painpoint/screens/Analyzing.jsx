@@ -1,7 +1,7 @@
 // Analyzing — Reddit 실시간 수집 + Gemini 분석 (통합)
 const ANALYZE_STEPS = [
   { id: 1, t: "키워드 분석",     d: "동의어·관련 산업 용어 확장" },
-  { id: 2, t: "커뮤니티 수집",   d: "Reddit에서 불만·고민 글 실시간 수집" },
+  { id: 2, t: "커뮤니티 수집",   d: "Reddit + YouTube 댓글 실시간 수집" },
   { id: 3, t: "전처리·노이즈 제거", d: "스팸·광고·중복 글 제거" },
   { id: 4, t: "Gemini 클러스터링", d: "수집 글을 3~5개 페인포인트로 압축" },
   { id: 5, t: "아이디어 생성",   d: "각 페인포인트별 카드 — 타깃·수익·MVP" },
@@ -50,15 +50,17 @@ function Analyzing({ params, onFinish, onCancel }) {
         window.PP_DATA = searchData;
         window._ssatisCollectedPosts = searchData.collectedPosts || [];
         const n = searchData.result?.totalCollected || 0;
+        const collectLog = searchData.result?.log || [];
+        const hasYoutube = collectLog.some((l) => l.id === "youtube" && l.n > 0);
         window._ssatisCollectMeta = {
-          source: "reddit",
+          source: hasYoutube ? "multi" : "reddit",
           totalCollected: n,
           afterFilter: searchData.result?.afterFilter ?? n,
-          log: searchData.result?.log || [],
+          log: collectLog,
         };
         setPostCount(n);
-        setLog(searchData.result?.log || fallbackLog);
-        setLogIdx(1);
+        setLog(collectLog.length ? collectLog : fallbackLog);
+        setLogIdx(Math.max(1, collectLog.length));
         setRedditDone(true);
         if (cancelled) return;
 
@@ -410,7 +412,7 @@ function Analyzing({ params, onFinish, onCancel }) {
                   >
                     {logIdx > log.indexOf(l)
                       ? l.n.toLocaleString()
-                      : redditDone && l.id === "reddit"
+                      : redditDone && l.id === "reddit" && log.length <= 1
                         ? postCount.toLocaleString()
                         : "—"}
                   </div>

@@ -156,6 +156,50 @@ function splitInt(total, parts) {
   });
 }
 
+/** 실수집 posts → 플랫폼별 가중치 (공감 점수 합) */
+function aggregateSourceScores(posts) {
+  const acc = {};
+  for (const p of posts || []) {
+    const src = p.source === "youtube" ? "youtube" : p.source === "reddit" ? "reddit" : null;
+    if (!src) continue;
+    acc[src] = (acc[src] || 0) + (Number(p.score) || 1);
+  }
+  return acc;
+}
+
+function scaleSourceScores(weights, total) {
+  const sum = Object.values(weights).reduce((a, b) => a + b, 0);
+  if (!sum) return { reddit: total };
+  const out = {};
+  let used = 0;
+  const keys = Object.keys(weights);
+  keys.forEach((k, i) => {
+    if (i === keys.length - 1) out[k] = Math.max(1, total - used);
+    else {
+      const v = Math.max(1, Math.round((weights[k] / sum) * total));
+      out[k] = v;
+      used += v;
+    }
+  });
+  return out;
+}
+
+function postToSample(fromPost, keyword, i, fallbackTitle) {
+  const src = fromPost?.source === "youtube" ? "youtube" : "reddit";
+  const titleFromPost = fromPost?.text
+    ? String(fromPost.text).split(" — ")[0].slice(0, 120)
+    : "";
+  let link = "#";
+  if (fromPost?.url && fromPost.url !== "#") link = fromPost.url;
+  else if (src === "reddit" && fromPost) link = redditPostUrl(fromPost) || "#";
+  return {
+    src,
+    title: titleFromPost || fallbackTitle || `${keyword} 관련 불만 사례 ${i + 1}`,
+    up: fromPost?.score ?? (fromPost ? 0 : 520 - i * 90),
+    link,
+  };
+}
+
 function normalizeCompetitors(raw) {
   const rows = Array.isArray(raw) ? raw.slice(0, 5) : [];
   const fallback = [
@@ -196,10 +240,17 @@ function toneForVerdict(verdict) {
 }
 
 /**
- * @param {object|null} collectMeta — Reddit 실수집 메타 { source:'reddit', totalCollected, log }
+ * @param {object|null} collectMeta — 실수집 메타 { source:'reddit'|'multi', totalCollected, log }
  */
 export function normalizeAnalysisResult(raw, keyword, posts, collectMeta = null) {
+  const useRealCollect =
+    collectMeta?.source === "reddit" || collectMeta?.source === "multi";
   const redditOnly = collectMeta?.source === "reddit";
+  const multiCollect = collectMeta?.source === "multi";
+  const globalSourceWeights = multiCollect ? aggregateSourceScores(posts) : null;
+  const sortedPosts = multiCollect
+    ? [...posts].sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+    : posts;
   const logLines =
     Array.isArray(collectMeta?.log) && collectMeta.log.length > 0
       ? collectMeta.log
@@ -218,7 +269,7 @@ export function normalizeAnalysisResult(raw, keyword, posts, collectMeta = null)
   });
 
   const srcKeys = ["reddit", "naver", "hackernews", "appstore", "playstore", "trustpilot", "youtube"];
-  const sampleSrc = redditOnly ? ["reddit", "reddit", "reddit"] : ["reddit", "naver", "hackernews"];
+  const sampleSrc = ["reddit", "naver", "hackernews"];
 
   const painpoints = painRaw.map((p, idx) => {
     const id = `pp${idx + 1}`;
@@ -226,32 +277,35 @@ export function normalizeAnalysisResult(raw, keyword, posts, collectMeta = null)
     const empathy = Math.max(120, 980 - idx * 140);
     const comments = Math.round(empathy * (2.2 + idx * 0.15));
     const sev = ["high", "mid", "mid", "low", "low"][idx] || "mid";
-    const sources = redditOnly
-      ? { reddit: empathy }
-      : Object.fromEntries(
-          srcKeys.map((k, i) => [k, splitInt(empathy, srcKeys.length)[i]]),
-        );
+    let sources;
+    if (multiCollect && globalSourceWeights) {
+      sources = scaleSourceScores(globalSourceWeights, empathy);
+    } else if (redditOnly) {
+      sources = { reddit: empathy };
+    } else {
+      sources = Object.fromEntries(
+        srcKeys.map((k, i) => [k, splitInt(empathy, srcKeys.length)[i]]),
+      );
+    }
 
     const titles = Array.isArray(p.sampleTitles) ? p.sampleTitles.map(String) : [];
-    const redditSlice = posts.slice(idx * 3, idx * 3 + 3);
+    const postSlice = (multiCollect ? sortedPosts : posts).slice(idx * 3, idx * 3 + 3);
     const samples = [0, 1, 2].map((i) => {
-      const fromPost = redditSlice[i];
-      const src = sampleSrc[i % sampleSrc.length];
-      const titleFromPost = fromPost?.text
-        ? String(fromPost.text).split(" — ")[0].slice(0, 120)
-        : "";
-      let link = "#";
-      if (src === "reddit" && fromPost) {
-        link =
-          (fromPost.url && fromPost.url !== "#" ? fromPost.url : null) ||
-          redditPostUrl(fromPost) ||
-          "#";
+      const fromPost = postSlice[i];
+      if (useRealCollect && fromPost) {
+        return postToSample(
+          fromPost,
+          keyword,
+          i,
+          titles[i] || `${keyword} 관련 불만 사례 ${i + 1}`,
+        );
       }
+      const src = sampleSrc[i % sampleSrc.length];
       return {
         src,
-        title: titleFromPost || titles[i] || `${keyword} 관련 불만 사례 ${i + 1}`,
-        up: fromPost?.score ?? (fromPost ? 0 : 520 - i * 90),
-        link,
+        title: titles[i] || `${keyword} 관련 불만 사례 ${i + 1}`,
+        up: 520 - i * 90,
+        link: "#",
       };
     });
 
