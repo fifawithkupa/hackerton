@@ -1,6 +1,6 @@
 // Ideas tab — 3 idea cards
 function Ideas({ data, saved, onToggleSave, onPickCompetitors }) {
-  const [expanded, setExpanded] = React.useState({ [data.ideas[0].id]: true });
+  const [expanded, setExpanded] = React.useState(() => data.ideas[0]?.id ? { [data.ideas[0].id]: true } : {});
   const toggle = (id) => setExpanded(e => ({ ...e, [id]: !e[id] }));
 
   return (
