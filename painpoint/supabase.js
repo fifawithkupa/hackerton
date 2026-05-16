@@ -54,10 +54,7 @@ const Auth = {
   // Google OAuth 로그인
   async signInWithGoogle() {
     if (!DB) return { error: null, mock: true };
-    return DB.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin + window.location.pathname },
-    });
+    return DB.auth.signInWithOAuth({ provider: "google" });
   },
 
   // 이메일/비밀번호 로그인 (대안)
