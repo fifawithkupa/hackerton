@@ -23,6 +23,7 @@ create index if not exists pain_clusters_user_id_idx on pain_clusters(user_id);
 create index if not exists pain_clusters_keyword_idx  on pain_clusters(keyword);
 
 alter table pain_clusters enable row level security;
+drop policy if exists "own clusters" on pain_clusters;
 create policy "own clusters" on pain_clusters for all using (auth.uid() = user_id);
 
 -- ── 2. market_signals ────────────────────────────────────────────────────────
