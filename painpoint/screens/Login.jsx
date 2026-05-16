@@ -1,6 +1,7 @@
 // Google-only login screen
 function Login({ onGoogleLogin, onBack }) {
   const [loading, setLoading] = React.useState(false);
+  const [gisReady, setGisReady] = React.useState(false);
   const googleBtnRef = React.useRef(null);
 
   // GIS renderButton 초기화
@@ -40,6 +41,7 @@ function Login({ onGoogleLogin, onBack }) {
         text: "continue_with",
         locale: "ko",
       });
+      setGisReady(true);
     };
 
     if (typeof google !== "undefined") {
@@ -137,6 +139,28 @@ function Login({ onGoogleLogin, onBack }) {
 
         {/* GIS가 여기에 실제 Google 버튼을 주입 */}
         <div ref={googleBtnRef} style={{ width: "100%", minHeight: 52 }} />
+
+        {/* Google Client ID 없거나 GIS 로드 실패 시 폴백 버튼 */}
+        {(!((window.SSATIS_CONFIG || {}).googleClientId) || !gisReady) && (
+          <button
+            onClick={async () => {
+              setLoading(true);
+              await onGoogleLogin({ id: "demo-" + Date.now(), email: "demo@ssatis.io", name: "데모 사용자", avatar: null });
+            }}
+            style={{
+              width: "100%", padding: "12px 20px",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              background: "#fff", border: "1.5px solid #dadce0", borderRadius: 8,
+              font: "600 15px/1 var(--font-base)", color: "#3c4043",
+              cursor: "pointer", transition: "box-shadow 0.15s",
+            }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = "0 1px 6px rgba(0,0,0,0.15)"}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
+          >
+            <GoogleG />
+            Google 계정으로 계속하기
+          </button>
+        )}
 
         {loading && (
           <div style={{
