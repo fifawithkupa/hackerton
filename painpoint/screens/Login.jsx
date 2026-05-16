@@ -1,78 +1,18 @@
 // Google-only login screen
 function Login({ onGoogleLogin, onBack }) {
   const [loading, setLoading] = React.useState(false);
-  const [authMode, setAuthMode] = React.useState("loading"); // loading | gis | supabase | none
-  const googleBtnRef = React.useRef(null);
+  const [ready, setReady]     = React.useState(false);
 
   React.useEffect(() => {
-    let cancelled = false;
-    let initialized = false;
-    let timer = null;
-
-    const initGIS = (clientId) => {
-      if (initialized || cancelled || !googleBtnRef.current || typeof google === "undefined") return;
-      initialized = true;
-
-      google.accounts.id.initialize({
-        client_id: clientId,
-        callback: async (response) => {
-          setLoading(true);
-          try {
-            await onGoogleLogin({ credential: response.credential });
-          } catch (e) {
-            showToast("로그인 오류: " + e.message, "error");
-            setLoading(false);
-          }
-        },
-      });
-
-      google.accounts.id.renderButton(googleBtnRef.current, {
-        theme: "outline",
-        size: "large",
-        width: googleBtnRef.current.offsetWidth || 400,
-        text: "continue_with",
-        locale: "ko",
-      });
-    };
-
-    const waitForGoogle = (clientId) => {
-      if (typeof google !== "undefined") {
-        initGIS(clientId);
-        return;
-      }
-      timer = setInterval(() => {
-        if (cancelled) return;
-        if (typeof google !== "undefined") {
-          clearInterval(timer);
-          initGIS(clientId);
-        }
-      }, 100);
-    };
-
     (async () => {
       if (typeof window.waitForSsatisConfig === "function") {
         await window.waitForSsatisConfig();
       }
-      if (cancelled) return;
-
-      const clientId = (window.SSATIS_CONFIG || {}).googleClientId;
-      if (clientId) {
-        setAuthMode("gis");
-        waitForGoogle(clientId);
-      } else if (window.supabaseClient) {
-        setAuthMode("supabase");
-      } else {
-        setAuthMode("none");
-      }
+      setReady(true);
     })();
+  }, []);
 
-    return () => {
-      cancelled = true;
-      if (timer) clearInterval(timer);
-    };
-  }, [onGoogleLogin]);
-
-  const handleSupabaseOAuth = async () => {
+  const handleLogin = async () => {
     setLoading(true);
     try {
       await onGoogleLogin();
@@ -165,72 +105,41 @@ function Login({ onGoogleLogin, onBack }) {
           별도 가입 없이 Google 계정으로 바로 시작합니다.
         </p>
 
-        {authMode === "loading" && (
-          <div style={{
+        <button
+          type="button"
+          onClick={handleLogin}
+          disabled={loading || !ready}
+          className="pp-btn"
+          data-variant="outline"
+          style={{
+            width: "100%",
             minHeight: 52,
-            display: "flex",
+            display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "var(--pp-ink-soft)",
-            font: "500 14px/1 var(--font-base)",
-          }}>
-            로그인 준비 중…
-          </div>
-        )}
-
-        {authMode === "gis" && (
-          <div ref={googleBtnRef} style={{ width: "100%", minHeight: 52 }} />
-        )}
-
-        {authMode === "supabase" && (
-          <button
-            type="button"
-            onClick={handleSupabaseOAuth}
-            disabled={loading}
-            className="pp-btn"
-            data-variant="outline"
-            style={{
-              width: "100%",
-              minHeight: 52,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 12,
-              font: "600 15px/1 var(--font-base)",
-            }}
-          >
-            <GoogleG />
-            Google로 계속하기
-          </button>
-        )}
-
-        {authMode === "none" && (
-          <div style={{
-            padding: 16,
-            borderRadius: 12,
-            border: "1px solid var(--pp-line)",
-            background: "var(--pp-surface-soft)",
-            font: "500 13px/1.6 var(--font-base)",
-            color: "var(--pp-ink-soft)",
-          }}>
-            Google 로그인이 설정되지 않았습니다.
-            <br />
-            Vercel 환경변수에 <strong>GOOGLE_CLIENT_ID</strong> 또는{" "}
-            <strong>SUPABASE_URL</strong> · <strong>SUPABASE_ANON_KEY</strong>를 추가한 뒤 재배포하세요.
-            <br />
-            Google Cloud Console에 배포 도메인을 Authorized JavaScript origins에 등록해야 합니다.
-          </div>
-        )}
-
-        {loading && (
-          <div style={{
-            marginTop: 12, textAlign: "center",
-            font: "500 14px/1 var(--font-base)",
-            color: "var(--pp-ink-soft)",
-          }}>
-            Google로 로그인 중…
-          </div>
-        )}
+            gap: 12,
+            font: "600 15px/1 var(--font-base)",
+            opacity: (!ready || loading) ? 0.6 : 1,
+          }}
+        >
+          {loading ? (
+            <>
+              <div style={{
+                width: 18, height: 18, borderRadius: "50%",
+                border: "2px solid var(--pp-ink-dim)",
+                borderTopColor: "transparent",
+                animation: "spin 0.8s linear infinite",
+                flexShrink: 0,
+              }} />
+              Google로 로그인 중…
+            </>
+          ) : (
+            <>
+              <GoogleG />
+              Google로 계속하기
+            </>
+          )}
+        </button>
 
         <div style={{
           margin: "28px 0",

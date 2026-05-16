@@ -12,7 +12,7 @@ async function embedText(text) {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "models/gemini-embedding-001", content: { parts: [{ text }] } }),
+      body: JSON.stringify({ model: "models/gemini-embedding-001", content: { parts: [{ text }] }, outputDimensionality: 768 }),
     }
   );
   if (!res.ok) throw new Error(`Gemini embedding HTTP ${res.status}`);
@@ -20,6 +20,27 @@ async function embedText(text) {
   const vec = data?.embedding?.values;
   if (!vec) throw new Error("Gemini embedding 응답 없음");
   return vec;
+}
+
+/**
+ * 텍스트 직접 입력으로 유사 YC 회사 5개 + RFS 3개 반환 (캐시 없음)
+ */
+export async function matchYCByText(text) {
+  const db = getDB();
+  const embedding = await embedText(text.slice(0, 1000));
+
+  const [compResult, rfsResult] = await Promise.all([
+    db.rpc("match_yc_companies", { query_embedding: embedding, match_count: 5 }),
+    db.rpc("match_yc_rfs",       { query_embedding: embedding, match_count: 3 }),
+  ]);
+
+  if (compResult.error) console.warn("[yc-match] companies error:", compResult.error.message);
+  if (rfsResult.error)  console.warn("[yc-match] rfs error:", rfsResult.error.message);
+
+  return {
+    companies: compResult.data || [],
+    rfs:       rfsResult.data  || [],
+  };
 }
 
 /**

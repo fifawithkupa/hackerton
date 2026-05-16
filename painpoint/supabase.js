@@ -368,64 +368,21 @@ function useSupabaseAuth() {
     });
   }
 
-  async function signInWithGoogle(payload) {
+  async function signInWithGoogle() {
     if (typeof window.waitForSsatisConfig === "function") {
       await window.waitForSsatisConfig();
     }
 
-    // GIS id_token (Supabase signInWithIdToken)
-    if (payload?.credential) {
-      const { error, session, googleUser } = await Auth.signInWithGoogleCredential(
-        payload.credential,
-      );
-      if (session?.user) {
-        await _hydrateUser(session.user);
-        return;
-      }
-      if (googleUser?.id) {
-        const user = {
-          id: googleUser.id,
-          email: googleUser.email,
-          name: googleUser.name,
-          plan: "Free",
-          avatar: googleUser.avatar || null,
-        };
-        localStorage.setItem("ssatis:session", JSON.stringify(googleUser));
-        setSupaUser(user);
-        return;
-      }
-      if (error) showToast("로그인 실패: " + error.message, "error");
+    if (!DB()) {
+      showToast("Supabase가 설정되지 않았습니다.", "error");
       return;
     }
 
-    // 로컬 전용 (Supabase 없음)
-    if (payload?.id) {
-      const user = {
-        id: payload.id,
-        email: payload.email,
-        name: payload.name,
-        plan: "Free",
-        avatar: payload.avatar || null,
-      };
-      localStorage.setItem("ssatis:session", JSON.stringify(payload));
-      setSupaUser(user);
-      return;
-    }
-
-    // Supabase Google OAuth 리다이렉트
-    const result = await Auth.signInWithGoogle();
-    const { error, googleUser } = result || {};
-    if (googleUser) {
-      const user = {
-        id: googleUser.id,
-        email: googleUser.email,
-        name: googleUser.name,
-        plan: "Free",
-        avatar: googleUser.avatar,
-      };
-      localStorage.setItem("ssatis:session", JSON.stringify(googleUser));
-      setSupaUser(user);
-    }
+    // Supabase OAuth 리다이렉트 (Google Cloud Console에 Supabase 콜백 URL만 등록하면 됨)
+    const { error } = await DB().auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.origin },
+    });
     if (error) showToast("로그인 실패: " + error.message, "error");
   }
 

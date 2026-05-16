@@ -213,7 +213,7 @@ function Results({ params, analysisResult, user, onBack }) {
       {tab === "ideas"       && <Ideas       data={D} saved={savedIdeas} onToggleSave={toggleSaved}
                                               onPickCompetitors={(id) => { setSelectedIdea(id); setTab("competitors"); }} />}
       {tab === "competitors" && <Competitors data={D} selectedId={selectedIdea} onSelect={setSelectedIdea} />}
-      {tab === "report"      && <Report      data={D} />}
+      {tab === "report"      && <Report      data={D} user={user} />}
     </main>
   );
 }
