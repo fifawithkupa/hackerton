@@ -1,13 +1,3 @@
 {
-  "outputDirectory": "painpoint",
-  "functions": {
-    "painpoint/api/*.mjs": {
-      "runtime": "@vercel/node"
-    }
-  },
-  "rewrites": [
-    { "source": "/api/ssatis-health", "destination": "/painpoint/api/ssatis-health.mjs" },
-    { "source": "/api/search",        "destination": "/painpoint/api/search.mjs" },
-    { "source": "/api/ssatis-analyze","destination": "/painpoint/api/ssatis-analyze.mjs" }
-  ]
+  "outputDirectory": "painpoint"
 }
