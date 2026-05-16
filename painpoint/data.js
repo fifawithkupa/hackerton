@@ -228,142 +228,143 @@ window.PP_DATA = {
       {
         "id": "i1",
         "rank": 1,
-        "title": "면접 피드백 자동 생성 SaaS",
-        "oneliner": "면접관 메모 한 줄을 입력하면 합·불 사유와 개선 가이드를 자동 생성해 지원자에게 발송.",
+        "title": "데이터 파이프라인 품질 자동 모니터링 SaaS",
+        "oneliner": "SQL 한 줄 연결만으로 파이프라인 전 구간 이상을 실시간 탐지. 이상 감지 시 슬랙 알림 + 원인 자동 추적.",
         "linkedPainpoint": "pp1",
-        "target": "중견기업 인사팀 · 채용 에이전시",
-        "revenue": "B2B SaaS · 시트당 월 ₩39,000",
+        "target": "스타트업·중견기업 데이터팀 · 데이터 분석가",
+        "revenue": "B2B SaaS · 파이프라인 수 기반 월 ₩49,000~",
         "mvp": [
-          "면접관 한 줄 메모 입력 → GPT-4o가 합/불 사유 3문장 생성",
-          "지원자 발송용 이메일 템플릿 자동 채움 + 발송 로그",
-          "법적 리스크 검수 룰셋 (차별·성희롱 표현 자동 마스킹)"
+          "DB 연결 → 컬럼 null·중복·범위 이탈 자동 탐지 (노코드 설정)",
+          "Slack·이메일 알림 + 이상 레코드 샘플 링크 즉시 발송",
+          "시간별 데이터 품질 점수 히스토리 대시보드"
         ],
-        "market": "국내 1조 8,000억원 · 글로벌 약 32조원 (HR Tech 2024 IDC)",
+        "market": "국내 데이터 품질 툴 시장 약 240억원 · 글로벌 $3.4B (2024 Gartner)",
         "verdict": "틈새 존재",
         "verdictTone": "violet",
         "competitors": [
           {
-            "name": "Lattice (US)",
-            "url": "lattice.com",
-            "price": "$8–11/seat",
-            "target": "Mid-market 전반",
-            "weakness": "한국 채용 프로세스 미대응, 면접 피드백 모듈 부재"
+            "name": "Great Expectations",
+            "url": "greatexpectations.io",
+            "price": "오픈소스 / 유료",
+            "target": "데이터 엔지니어",
+            "weakness": "설정 복잡, 한국어 문서 전무, 비개발자 사용 불가"
           },
           {
-            "name": "Greenhouse",
-            "url": "greenhouse.io",
+            "name": "dbt Cloud",
+            "url": "getdbt.com",
+            "price": "$100~/월",
+            "target": "Analytics Engineer",
+            "weakness": "테스트 기능 한정, 실시간 모니터링 미지원"
+          },
+          {
+            "name": "Atlan",
+            "url": "atlan.com",
             "price": "Enterprise quote",
-            "target": "Enterprise ATS",
-            "weakness": "피드백은 면접관에게만 노출, 지원자 자동 발송 없음"
-          },
-          {
-            "name": "원티드",
-            "url": "wanted.co.kr",
-            "price": "성공보수 7%",
-            "target": "지원자 매칭",
-            "weakness": "ATS 기능 없음, 면접 피드백 워크플로우 부재"
+            "target": "대기업 데이터팀",
+            "weakness": "SMB 가격 부담, 국내 레퍼런스 없음"
           }
         ],
         "moats": [
-          "면접 메모 → 지원자 친화 표현 변환 데이터셋 (한국어 특화)",
-          "차별·성희롱 표현 검수 룰셋 (법무팀과 공동 검증)",
-          "공감 글 6,040건의 \"좋은 피드백\" 패턴 학습 데이터"
+          "한국 SaaS·핀테크 DB 스키마 패턴 학습 → 이상 탐지 정확도 우위",
+          "노코드 5분 설정 — 비개발자도 즉시 모니터링 시작",
+          "파이프라인 실행 로그 연동으로 '왜 깨졌나' 원인 자동 추적"
         ]
       },
       {
         "id": "i2",
         "rank": 2,
-        "title": "채용공고 진실성 검증 플랫폼",
-        "oneliner": "현직자 익명 검증으로 \"JD vs 실제 업무\" 일치도를 점수화. 공고 옆에 신뢰 배지 표시.",
+        "title": "모바일 데이터 절약 코치 앱",
+        "oneliner": "앱별 데이터 소모를 실시간 추적 후 낭비 패턴 분석 → 맞춤 절약 플랜과 요금제 최적 추천을 자동 제안.",
         "linkedPainpoint": "pp2",
-        "target": "20–30대 구직자 · 이직 활성층",
-        "revenue": "프리미엄 구독 (₩9,900/월) + B2B 신뢰 배지 라이선스",
+        "target": "데이터 요금 민감 20~30대 · 알뜰폰 이용자",
+        "revenue": "Freemium · 프리미엄 분석 ₩2,900/월",
         "mvp": [
-          "공고 URL 입력 → 현직자 1줄 검증 모집 (₩2,000 보상)",
-          "JD 키워드 vs 응답 일치도 → 0–100점 신뢰 스코어",
-          "Chrome 확장 — 잡코리아·사람인 위에 배지 오버레이"
+          "앱별 데이터 소모 실시간 트래킹 (Android VPN API 활용)",
+          "월 예산 설정 → 초과 예상 시 푸시 알림 즉시 발송",
+          "통신사별 요금제 vs 실사용량 비교 리포트 자동 생성"
         ],
-        "market": "국내 채용공고 연 480만건 · 검증 시장 약 600억원 추정",
+        "market": "국내 알뜰폰 가입자 1,700만명 · 데이터 관리 앱 시장 약 80억원",
         "verdict": "블루오션",
         "verdictTone": "positive",
         "competitors": [
           {
-            "name": "잡플래닛",
-            "url": "jobplanet.co.kr",
-            "price": "리뷰 1건/노출",
-            "target": "기업 리뷰 일반",
-            "weakness": "회사 단위 평가, 공고 단위 검증 없음"
-          },
-          {
-            "name": "원티드 인사이트",
-            "url": "wanted.co.kr/insight",
+            "name": "SKT·KT·LGU+ 자사 앱",
+            "url": "t-world.co.kr",
             "price": "무료",
-            "target": "기업 인사이트",
-            "weakness": "공고 단위 검증 없음, 현직자 응답률 낮음"
+            "target": "자사 고객",
+            "weakness": "앱별 세부 내역 없음, 절약 가이드 부재, 타통신사 비교 불가"
           },
           {
-            "name": "Glassdoor",
-            "url": "glassdoor.com",
-            "price": "리뷰 교환",
-            "target": "글로벌 리뷰",
-            "weakness": "한국 데이터 빈약, 공고 단위 평가 불가"
+            "name": "GlassWire",
+            "url": "glasswire.com",
+            "price": "$2.99/월",
+            "target": "PC 보안 모니터링",
+            "weakness": "모바일 기능 빈약, 한국 통신사 API 미연동"
+          },
+          {
+            "name": "My Data Manager",
+            "url": "mydatamanager.com",
+            "price": "무료",
+            "target": "글로벌 사용자",
+            "weakness": "한국 알뜰폰·요금제 DB 없음, UI 구식"
           }
         ],
         "moats": [
-          "공고 단위 신뢰 스코어 — 경쟁자는 회사 단위만 평가",
-          "현직자 보상 네트워크 (선점 효과)",
-          "확장 프로그램으로 \"외부 채용 사이트 위 노출\" 분배 채널 확보"
+          "한국 통신사·알뜰폰 120개 요금제 DB 실시간 갱신",
+          "앱 카테고리별 '평균 소모량 대비 내 사용량' 벤치마크 제공",
+          "절약 달성 시 포인트 지급 → 알뜰폰 요금 할인 연계 (바이럴)"
         ]
       },
       {
         "id": "i3",
         "rank": 3,
-        "title": "AI 자소서 멀티버전 라이터",
-        "oneliner": "기본 이력 한 번 입력 → 회사별 톤·강조 포인트 자동 변주. 4시간 → 12분.",
+        "title": "개인 투자자용 데이터 기반 종목 스크리너",
+        "oneliner": "흩어진 재무·뉴스·공시 데이터를 한 화면에 통합. 자연어로 조건을 입력하면 DART·KRX 데이터를 즉시 필터링.",
         "linkedPainpoint": "pp3",
-        "target": "신입·주니어 구직자",
-        "revenue": "Freemium · 월 3건 무료 / 무제한 ₩6,900",
+        "target": "개인 투자자 · 주식 스터디 모임",
+        "revenue": "프리미엄 구독 ₩9,900/월 · 종목 알림 API",
         "mvp": [
-          "기본 프로필 한 번 입력 (이력·프로젝트·강점)",
-          "회사 JD 붙여넣기 → 회사 톤 분석 + 자소서 4문항 자동 작성",
-          "표절률·AI 탐지 회피 점수 자동 표시"
+          "자연어 조건 입력 → SQL 자동 변환 → DART·KRX 필터링",
+          "종목 비교표 자동 생성 (5개 핵심 지표 나란히 보기)",
+          "조건 저장 → 신규 충족 종목 발생 시 카카오·슬랙 알림"
         ],
-        "market": "국내 자소서 작성 도구 시장 약 280억원 (2024)",
+        "market": "국내 개인 투자자 1,400만명 · HTS 외 분석 툴 시장 약 350억원",
         "verdict": "레드오션",
         "verdictTone": "warn",
         "competitors": [
           {
-            "name": "잡다 AI매칭",
-            "url": "jobda.im",
+            "name": "증권플러스",
+            "url": "stockplus.com",
             "price": "무료",
-            "target": "신입 채용",
-            "weakness": "이력 자동 생성에 한정, 회사별 변주 없음"
+            "target": "개인 투자자",
+            "weakness": "자연어 검색 불가, 커스텀 스크리닝 없음"
           },
           {
-            "name": "자소설닷컴",
-            "url": "jasoseol.com",
-            "price": "₩9,900/월",
-            "target": "취준생",
-            "weakness": "AI 생성 품질 편차 큼, 톤 매칭 약함"
+            "name": "FnGuide",
+            "url": "fnguide.com",
+            "price": "기관 전용",
+            "target": "기관·증권사",
+            "weakness": "개인 구독 불가, UX 복잡, 가격 수백만원대"
           },
           {
-            "name": "노션 AI",
-            "url": "notion.so",
-            "price": "$10/월",
-            "target": "범용",
-            "weakness": "한국 자소서 포맷 미학습"
+            "name": "Finviz (US)",
+            "url": "finviz.com",
+            "price": "$24.96/월",
+            "target": "글로벌 투자자",
+            "weakness": "한국 주식 미지원, 공시·DART 미연동"
           },
           {
-            "name": "ChatGPT",
-            "url": "chatgpt.com",
-            "price": "$20/월",
-            "target": "범용",
-            "weakness": "회사 톤 학습 없음, 매번 프롬프트 필요"
+            "name": "토스증권",
+            "url": "tossinvest.com",
+            "price": "무료",
+            "target": "MZ 투자자",
+            "weakness": "스크리닝 기능 없음, 데이터 분석 도구 부재"
           }
         ],
         "moats": [
-          "JD → 회사 톤 분류기 (수집된 공고 480만건 학습)",
-          "자소서 4문항 한국형 템플릿 데이터셋"
+          "DART·KRX 공시 실시간 파싱 + 자연어 변환 파이프라인",
+          "개인 투자자 커뮤니티 조건 공유 기능 (바이럴 루프)",
+          "국내 재무데이터 10년치 정규화 DB (경쟁사 동급 구축 6개월↑)"
         ]
       }
     ]
