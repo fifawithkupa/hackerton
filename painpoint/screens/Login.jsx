@@ -1,18 +1,56 @@
 // Google-only login screen
 function Login({ onGoogleLogin, onBack }) {
   const [loading, setLoading] = React.useState(false);
+  const googleBtnRef = React.useRef(null);
 
-  const doLogin = async () => {
-    setLoading(true);
-    try {
-      await onGoogleLogin();
-      // Supabase OAuth는 리다이렉트 → 페이지 reload 후 세션 복구
-      // 목 모드에서는 useSupabaseAuth가 supaUser를 세팅해 app.jsx가 처리
-    } catch (e) {
-      showToast("로그인 중 오류가 발생했습니다", "error");
-      setLoading(false);
+  // GIS renderButton 초기화
+  React.useEffect(() => {
+    const clientId = (window.SSATIS_CONFIG || {}).googleClientId;
+    if (!clientId) return;
+
+    let initialized = false;
+    const initGIS = () => {
+      if (initialized || !googleBtnRef.current || typeof google === "undefined") return;
+      initialized = true;
+
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response) => {
+          setLoading(true);
+          try {
+            // JWT 디코드 (한글 이름 지원)
+            const base64 = response.credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+            const p = JSON.parse(
+              decodeURIComponent(
+                atob(base64).split("").map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join("")
+              )
+            );
+            await onGoogleLogin({ id: p.sub, email: p.email, name: p.name, avatar: p.picture });
+          } catch (e) {
+            showToast("로그인 오류: " + e.message, "error");
+            setLoading(false);
+          }
+        },
+      });
+
+      google.accounts.id.renderButton(googleBtnRef.current, {
+        theme: "outline",
+        size: "large",
+        width: googleBtnRef.current.offsetWidth || 400,
+        text: "continue_with",
+        locale: "ko",
+      });
+    };
+
+    if (typeof google !== "undefined") {
+      initGIS();
+    } else {
+      const timer = setInterval(() => {
+        if (typeof google !== "undefined") { clearInterval(timer); initGIS(); }
+      }, 100);
+      return () => clearInterval(timer);
     }
-  };
+  }, []);
 
   return (
     <main className="fade-in" style={{
@@ -97,23 +135,18 @@ function Login({ onGoogleLogin, onBack }) {
           별도 가입 없이 Google 계정으로 바로 시작합니다.
         </p>
 
-        <button onClick={doLogin} disabled={loading} style={{
-          all: "unset", cursor: loading ? "wait" : "pointer",
-          height: 52,
-          background: "#fff",
-          border: "1px solid var(--pp-line-strong)",
-          borderRadius: 12,
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 12,
-          font: "600 15px/1 var(--font-base)",
-          color: "var(--pp-ink)",
-          transition: "background 150ms ease-out",
-          opacity: loading ? 0.7 : 1,
-        }}
-        onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "var(--pp-surface-soft)")}
-        onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}>
-          <GoogleG />
-          {loading ? "Google로 로그인 중…" : "Google 계정으로 계속하기"}
-        </button>
+        {/* GIS가 여기에 실제 Google 버튼을 주입 */}
+        <div ref={googleBtnRef} style={{ width: "100%", minHeight: 52 }} />
+
+        {loading && (
+          <div style={{
+            marginTop: 12, textAlign: "center",
+            font: "500 14px/1 var(--font-base)",
+            color: "var(--pp-ink-soft)",
+          }}>
+            Google로 로그인 중…
+          </div>
+        )}
 
         <div style={{
           margin: "28px 0",

@@ -1,11 +1,11 @@
-// Analyzing — Reddit 실시간 수집 + Gemini 분석 (통합)
+// Analyzing — Reddit + 네이버 실시간 수집 + Gemini 분석 (통합)
 const ANALYZE_STEPS = [
-  { id: 1, t: "키워드 분석",     d: "동의어·관련 산업 용어 확장" },
-  { id: 2, t: "커뮤니티 수집",   d: "Reddit에서 불만·고민 글 실시간 수집" },
+  { id: 1, t: "키워드 분석",       d: "동의어·관련 산업 용어 확장" },
+  { id: 2, t: "커뮤니티 수집",     d: "Reddit + 네이버(블로그·카페·지식인) 실시간 수집" },
   { id: 3, t: "전처리·노이즈 제거", d: "스팸·광고·중복 글 제거" },
   { id: 4, t: "Gemini 클러스터링", d: "수집 글을 3~5개 페인포인트로 압축" },
-  { id: 5, t: "아이디어 생성",   d: "각 페인포인트별 카드 — 타깃·수익·MVP" },
-  { id: 6, t: "경쟁자·시장 판정", d: "Gemini — 경쟁자 3곳 + 블루오션/틈새/레드오션" },
+  { id: 5, t: "아이디어 생성",     d: "각 페인포인트별 카드 — 타깃·수익·MVP" },
+  { id: 6, t: "경쟁자·시장 판정",  d: "Gemini — 경쟁자 3곳 + 블루오션/틈새/레드오션" },
 ];
 
 function ppSleep(ms) {
@@ -22,7 +22,7 @@ function Analyzing({ params, onFinish, onCancel }) {
   const [log, setLog] = React.useState(fallbackLog);
   const [logIdx, setLogIdx] = React.useState(0);
   const [postCount, setPostCount] = React.useState(0);
-  const [redditDone, setRedditDone] = React.useState(false);
+  const [collectDone, setCollectDone] = React.useState(false);
   const [error, setError] = React.useState(null);
 
   React.useEffect(() => {
@@ -39,27 +39,41 @@ function Analyzing({ params, onFinish, onCancel }) {
         if (cancelled) return;
         setStepIdx(1);
 
+        // sources 파라미터 빌드
+        const enabledSources = params.sources && typeof params.sources === "object"
+          ? Object.entries(params.sources).filter(([, on]) => on).map(([id]) => id)
+          : ["reddit", "naver"];
+        const sourcesParam = enabledSources.join(",") || "reddit,naver,youtube";
+
         const searchRes = await fetch(
-          `/api/search?q=${encodeURIComponent(params.keyword)}`,
+          `/api/search?q=${encodeURIComponent(params.keyword)}&sources=${encodeURIComponent(sourcesParam)}`,
         );
         const searchData = await searchRes.json();
         if (!searchRes.ok || searchData.error) {
-          throw new Error(searchData.error || `Reddit 수집 실패 (${searchRes.status})`);
+          throw new Error(searchData.error || `수집 실패 (${searchRes.status})`);
         }
 
-        window.PP_DATA = searchData;
+        // 원본 목 아이디어 보존 (Gemini 실패 시 fallback용)
+        const _mockIdeas = window.PP_DATA?.result?.ideas || [];
+        window.PP_DATA = {
+          ...searchData,
+          result: {
+            ...searchData.result,
+            ideas: _mockIdeas,  // 검색 후에도 mock 아이디어 유지
+          },
+        };
         window._ssatisCollectedPosts = searchData.collectedPosts || [];
         const n = searchData.result?.totalCollected || 0;
         window._ssatisCollectMeta = {
-          source: "reddit",
+          source: sourcesParam,
           totalCollected: n,
           afterFilter: searchData.result?.afterFilter ?? n,
           log: searchData.result?.log || [],
         };
         setPostCount(n);
         setLog(searchData.result?.log || fallbackLog);
-        setLogIdx(1);
-        setRedditDone(true);
+        setLogIdx(searchData.result?.log?.length || 1);
+        setCollectDone(true);
         if (cancelled) return;
 
         setStepIdx(2);
@@ -100,7 +114,7 @@ function Analyzing({ params, onFinish, onCancel }) {
           if (cancelled) return;
 
           if (!result) {
-            showToast("Gemini 결과 없음 — Reddit 수집 데이터를 표시합니다", "default");
+            showToast("Gemini 결과 없음 — 수집 데이터를 표시합니다", "default");
             setStepIdx(ANALYZE_STEPS.length);
             onFinish(null);
             return;
@@ -154,7 +168,7 @@ function Analyzing({ params, onFinish, onCancel }) {
     };
   }, [params.keyword, params.sources, useAi, onFinish]);
 
-  const totalCollected = redditDone
+  const totalCollected = collectDone
     ? postCount
     : log.slice(0, logIdx).reduce((a, b) => a + (b.n || 0), 0);
 
@@ -234,7 +248,7 @@ function Analyzing({ params, onFinish, onCancel }) {
           color: "var(--color-label-strong)",
         }}
       >
-        “{params.keyword}” 키워드 페인포인트 분석
+        "{params.keyword}" 키워드 페인포인트 분석
       </h1>
 
       <div
@@ -245,6 +259,7 @@ function Analyzing({ params, onFinish, onCancel }) {
           gap: 24,
         }}
       >
+        {/* 분석 단계 */}
         <div className="pp-card" style={{ padding: 28 }}>
           <div
             style={{
@@ -344,6 +359,7 @@ function Analyzing({ params, onFinish, onCancel }) {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {/* 실시간 수집량 카드 */}
           <div
             className="pp-card"
             style={{
@@ -383,6 +399,7 @@ function Analyzing({ params, onFinish, onCancel }) {
               건의 불만·고민 수집됨
             </div>
 
+            {/* 소스별 수집량 */}
             <div
               style={{
                 marginTop: 24,
@@ -394,7 +411,7 @@ function Analyzing({ params, onFinish, onCancel }) {
               }}
             >
               {log.slice(0, 3).map((l) => (
-                <div key={l.src + l.id}>
+                <div key={l.src + (l.id || "")}>
                   <div
                     style={{
                       font: "500 11px/1 var(--font-base)",
@@ -408,17 +425,14 @@ function Analyzing({ params, onFinish, onCancel }) {
                     className="tnum"
                     style={{ font: "700 16px/1 var(--font-base)" }}
                   >
-                    {logIdx > log.indexOf(l)
-                      ? l.n.toLocaleString()
-                      : redditDone && l.id === "reddit"
-                        ? postCount.toLocaleString()
-                        : "—"}
+                    {collectDone ? l.n.toLocaleString() : "—"}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
+          {/* 수집 로그 터미널 */}
           <div className="pp-card pp-log" style={{ padding: 20, minHeight: 200 }}>
             <div style={{ marginBottom: 8, color: "var(--pp-ink-dim)" }}>
               $ painpoint collect --keyword "{params.keyword}"
@@ -441,13 +455,13 @@ function Analyzing({ params, onFinish, onCancel }) {
                 <span>posts</span>
               </div>
             ))}
-            {!redditDone && !error && (
+            {!collectDone && !error && (
               <div
                 style={{ display: "flex", alignItems: "center", gap: 6 }}
               >
                 <span style={{ color: "var(--pp-pain)" }}>›</span>
                 <SourceGlyph id="reddit" size={14} />
-                <span>레딧 — "{params.keyword}" 검색 중</span>
+                <span>레딧 + 네이버 + 유튜브 — "{params.keyword}" 수집 중</span>
                 <span
                   style={{
                     marginLeft: 4,

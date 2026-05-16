@@ -35,12 +35,8 @@ function PainpointCard({ p }) {
   const sevLabel = { high: "심각도 상", mid: "심각도 중", low: "심각도 하" }[p.severity];
   const sevTone  = { high: "pain", mid: "warn", low: "primary" }[p.severity];
   const totalSrc = Object.values(p.sources).reduce((a, b) => a + b, 0);
-  const sourceOrder = ["reddit", "naver", "hackernews", "appstore", "playstore", "trustpilot", "youtube"];
-  const sourceLabel = {
-    reddit: "레딧", naver: "네이버", hackernews: "해커뉴스",
-    appstore: "앱스토어", playstore: "Google Play",
-    trustpilot: "Trustpilot", youtube: "유튜브 댓글",
-  };
+  const sourceOrder = ["reddit", "naver", "youtube"];
+  const sourceLabel = { reddit: "레딧", naver: "네이버", youtube: "유튜브 댓글" };
 
   return (
     <div className="pp-card" style={{ padding: 28 }}>
@@ -188,9 +184,7 @@ function PainpointCard({ p }) {
                   <div key={id} style={{
                     width: `${pct}%`,
                     background: {
-                      reddit: "#FF4500", naver: "#03C75A", hackernews: "#FF6600",
-                      appstore: "#0080FF", playstore: "#4285F4",
-                      trustpilot: "#00B67A", youtube: "#FF0000",
+                      reddit: "#FF4500", naver: "#03C75A", youtube: "#FF0000",
                     }[id],
                   }} />
                 );

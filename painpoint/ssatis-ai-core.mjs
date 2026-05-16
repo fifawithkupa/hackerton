@@ -217,8 +217,16 @@ export function normalizeAnalysisResult(raw, keyword, posts, collectMeta = null)
     timeStyle: "short",
   });
 
-  const srcKeys = ["reddit", "naver", "hackernews", "appstore", "playstore", "trustpilot", "youtube"];
-  const sampleSrc = redditOnly ? ["reddit", "reddit", "reddit"] : ["reddit", "naver", "hackernews"];
+  const srcKeys = ["reddit", "naver", "youtube"];
+  const sampleSrc = redditOnly ? ["reddit", "reddit", "reddit"] : ["reddit", "naver", "youtube"];
+
+  // 소스별 posts 그룹핑 (샘플 뽑기용)
+  const postsBySource = {};
+  for (const p of posts) {
+    const src = p.source || "reddit";
+    if (!postsBySource[src]) postsBySource[src] = [];
+    postsBySource[src].push(p);
+  }
 
   const painpoints = painRaw.map((p, idx) => {
     const id = `pp${idx + 1}`;
@@ -233,24 +241,23 @@ export function normalizeAnalysisResult(raw, keyword, posts, collectMeta = null)
         );
 
     const titles = Array.isArray(p.sampleTitles) ? p.sampleTitles.map(String) : [];
-    const redditSlice = posts.slice(idx * 3, idx * 3 + 3);
-    const samples = [0, 1, 2].map((i) => {
-      const fromPost = redditSlice[i];
-      const src = sampleSrc[i % sampleSrc.length];
+    // 소스별로 그룹핑해서 painpoint마다 각 소스에서 하나씩 뽑기
+    const samples = srcKeys.map((src, i) => {
+      const srcPosts = postsBySource[src] || [];
+      const fromPost = srcPosts[idx] ?? srcPosts[0];
       const titleFromPost = fromPost?.text
         ? String(fromPost.text).split(" — ")[0].slice(0, 120)
         : "";
       let link = "#";
-      if (src === "reddit" && fromPost) {
-        link =
-          (fromPost.url && fromPost.url !== "#" ? fromPost.url : null) ||
-          redditPostUrl(fromPost) ||
-          "#";
+      if (fromPost?.url && fromPost.url !== "#" && /^https?:\/\//i.test(fromPost.url)) {
+        link = fromPost.url;
+      } else if (fromPost && src === "reddit") {
+        link = redditPostUrl(fromPost) || "#";
       }
       return {
         src,
         title: titleFromPost || titles[i] || `${keyword} 관련 불만 사례 ${i + 1}`,
-        up: fromPost?.score ?? (fromPost ? 0 : 520 - i * 90),
+        up: fromPost?.score ?? (520 - i * 90),
         link,
       };
     });

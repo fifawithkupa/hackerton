@@ -8,3 +8,7 @@ Thumbs.db
 # 에디터
 .vscode/
 .idea/
+
+# 환경변수
+.env
+.env.local

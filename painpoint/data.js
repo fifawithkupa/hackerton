@@ -123,58 +123,26 @@ window.PP_DATA = {
     {
       "id": "reddit",
       "name": "레딧",
-      "desc": "r/recruitinghell · r/cscareerquestions · r/jobs",
-      "posts": 75,
+      "desc": "Reddit 글로벌 커뮤니티",
+      "posts": 100,
       "defaultOn": true,
       "free": true
     },
     {
       "id": "naver",
       "name": "네이버",
-      "desc": "이직·취준생 카페 + 블로그 12개",
-      "posts": 358,
+      "desc": "블로그·카페·지식인",
+      "posts": 50,
       "defaultOn": true,
-      "free": false
-    },
-    {
-      "id": "hackernews",
-      "name": "해커뉴스",
-      "desc": "Ask HN · Show HN · job posts 댓글",
-      "posts": 249,
-      "defaultOn": true,
-      "free": false
-    },
-    {
-      "id": "appstore",
-      "name": "앱스토어",
-      "desc": "관련 앱 별 1~3점 리뷰 톱 500",
-      "posts": 154,
-      "defaultOn": true,
-      "free": false
-    },
-    {
-      "id": "playstore",
-      "name": "구글플레이스토어",
-      "desc": "관련 앱 별 1~3점 리뷰 톱 500",
-      "posts": 127,
-      "defaultOn": true,
-      "free": false
-    },
-    {
-      "id": "trustpilot",
-      "name": "트러스트파일럿",
-      "desc": "HR 서비스 분류 리뷰",
-      "posts": 138,
-      "defaultOn": false,
-      "free": false
+      "free": true
     },
     {
       "id": "youtube",
       "name": "유튜브 댓글",
-      "desc": "관련 영상 댓글 톱 50",
-      "posts": 112,
-      "defaultOn": false,
-      "free": false
+      "desc": "관련 영상 댓글",
+      "posts": 80,
+      "defaultOn": true,
+      "free": true
     }
   ],
   "result": {
@@ -188,51 +156,23 @@ window.PP_DATA = {
       {
         "src": "레딧",
         "id": "reddit",
-        "n": 75,
-        "t": "r/recruitinghell · r/cscareerquestions · r/jobs",
-        "d": 0.3
+        "n": 100,
+        "t": "Reddit 글로벌 커뮤니티",
+        "d": 0.5
       },
       {
         "src": "네이버",
         "id": "naver",
-        "n": 358,
-        "t": "이직·취준생 카페·블로그 12개",
-        "d": 0.9
+        "n": 50,
+        "t": "블로그·카페·지식인",
+        "d": 1.2
       },
       {
-        "src": "해커뉴스",
-        "id": "hackernews",
-        "n": 249,
-        "t": "Ask HN · Show HN 댓글 분석",
-        "d": 1.5
-      },
-      {
-        "src": "앱스토어",
-        "id": "appstore",
-        "n": 154,
-        "t": "관련 앱 별 1~3점 리뷰 톱 500",
-        "d": 2.1
-      },
-      {
-        "src": "트러스트파일럿",
-        "id": "trustpilot",
-        "n": 138,
-        "t": "HR 서비스 분류 리뷰",
-        "d": 2.7
-      },
-      {
-        "src": "구글플레이스토어",
-        "id": "playstore",
-        "n": 127,
-        "t": "관련 앱 별 1~3점 리뷰 톱 500",
-        "d": 3.2
-      },
-      {
-        "src": "유튜브 댓글",
+        "src": "유튜브",
         "id": "youtube",
-        "n": 112,
-        "t": "관련 영상 댓글 톱 50",
-        "d": 3.7
+        "n": 80,
+        "t": "관련 영상 댓글",
+        "d": 2.0
       }
     ],
     "painpoints": [
@@ -247,10 +187,6 @@ window.PP_DATA = {
         "sources": {
           "reddit": 300,
           "naver": 274,
-          "hackernews": 224,
-          "appstore": 130,
-          "playstore": 105,
-          "trustpilot": 110,
           "youtube": 92
         },
         "emotions": {
@@ -291,10 +227,6 @@ window.PP_DATA = {
         "sources": {
           "reddit": 300,
           "naver": 219,
-          "hackernews": 110,
-          "appstore": 82,
-          "playstore": 65,
-          "trustpilot": 89,
           "youtube": 51
         },
         "emotions": {
@@ -335,10 +267,6 @@ window.PP_DATA = {
         "sources": {
           "reddit": 300,
           "naver": 198,
-          "hackernews": 100,
-          "appstore": 38,
-          "playstore": 32,
-          "trustpilot": 61,
           "youtube": 41
         },
         "emotions": {

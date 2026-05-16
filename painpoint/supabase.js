@@ -313,10 +313,17 @@ function useSupabaseAuth() {
     });
   }
 
-  async function signInWithGoogle() {
+  async function signInWithGoogle(directUser) {
+    // Login.jsx가 GIS 버튼에서 직접 디코딩한 유저를 넘겨주는 경우
+    if (directUser && directUser.id) {
+      const user = { id: directUser.id, email: directUser.email, name: directUser.name, plan: "Free", avatar: directUser.avatar || null };
+      localStorage.setItem('ssatis:session', JSON.stringify(directUser));
+      setSupaUser(user);
+      return;
+    }
+    // 기존 흐름 (Supabase OAuth 등)
     const result = await Auth.signInWithGoogle();
     const { error, googleUser } = result || {};
-
     if (googleUser) {
       const user = { id: googleUser.id, email: googleUser.email, name: googleUser.name, plan: "Free", avatar: googleUser.avatar };
       localStorage.setItem('ssatis:session', JSON.stringify(googleUser));
