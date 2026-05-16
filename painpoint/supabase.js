@@ -64,38 +64,97 @@ const Local = {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
+// Google JWT 디코드 (UTF-8 한글 이름 지원)
+function _decodeGoogleJwt(credential) {
+  const base64 = credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+  const json = decodeURIComponent(
+    atob(base64).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+  );
+  return JSON.parse(json);
+}
+
 const Auth = {
   // Google OAuth 로그인
-  async signInWithGoogle() {
-    if (!DB) return { error: null, mock: true };
-    return DB.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin + window.location.pathname },
-    });
-  },
+  signInWithGoogle() {
+    const clientId = (window.SSATIS_CONFIG || {}).googleClientId;
 
-  // 이메일/비밀번호 로그인 (대안)
-  async signInWithEmail(email, password) {
-    if (!DB) return { data: { user: { email, id: "mock-id" } }, error: null };
-    return DB.auth.signInWithPassword({ email, password });
+    // Google Identity Services 로그인
+    if (clientId) {
+      return new Promise((resolve) => {
+        const onCredential = (response) => {
+          try {
+            const p = _decodeGoogleJwt(response.credential);
+            resolve({
+              error: null,
+              googleUser: { id: p.sub, email: p.email, name: p.name, avatar: p.picture },
+            });
+          } catch (e) {
+            resolve({ error: { message: '인증 정보 파싱 실패' } });
+          }
+        };
+
+        // GIS 스크립트 로드 대기 후 초기화
+        const init = () => {
+          google.accounts.id.initialize({ client_id: clientId, callback: onCredential });
+          google.accounts.id.prompt((notification) => {
+            // One Tap이 표시 안 될 경우 팝업 방식으로 fallback
+            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+              const popup = window.open(
+                `https://accounts.google.com/o/oauth2/v2/auth?` +
+                `client_id=${encodeURIComponent(clientId)}` +
+                `&redirect_uri=${encodeURIComponent(window.location.origin + window.location.pathname)}` +
+                `&response_type=id_token` +
+                `&scope=openid%20email%20profile` +
+                `&nonce=${Math.random().toString(36).slice(2)}`,
+                '_blank', 'width=480,height=600'
+              );
+              if (!popup) resolve({ error: { message: '팝업이 차단되었습니다. 팝업 허용 후 다시 시도하세요.' } });
+            }
+          });
+        };
+
+        if (typeof google !== 'undefined') {
+          init();
+        } else {
+          // GIS 스크립트 로드 대기
+          window.addEventListener('load', init, { once: true });
+        }
+      });
+    }
+
+    // Supabase OAuth
+    if (DB) {
+      return DB.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin + window.location.pathname },
+      });
+    }
+
+    return Promise.resolve({ error: { message: 'Google Client ID 또는 Supabase 설정이 필요합니다.' } });
   },
 
   // 로그아웃
   async signOut() {
-    if (!DB) return;
-    return DB.auth.signOut();
+    // 로컬 세션 삭제
+    localStorage.removeItem('ssatis:session');
+    if (DB) return DB.auth.signOut();
   },
 
   // 현재 세션
   async getSession() {
-    if (!DB) return { data: { session: null } };
-    return DB.auth.getSession();
+    if (DB) return DB.auth.getSession();
+    // localStorage에 저장된 세션 복구
+    try {
+      const saved = localStorage.getItem('ssatis:session');
+      if (saved) return { data: { session: { user: JSON.parse(saved) } } };
+    } catch {}
+    return { data: { session: null } };
   },
 
   // 세션 변화 구독
   onAuthStateChange(cb) {
-    if (!DB) return { data: { subscription: { unsubscribe: () => {} } } };
-    return DB.auth.onAuthStateChange(cb);
+    if (DB) return DB.auth.onAuthStateChange(cb);
+    return { data: { subscription: { unsubscribe: () => {} } } };
   },
 };
 
@@ -220,7 +279,16 @@ function useSupabaseAuth() {
     // 초기 세션 확인
     Auth.getSession().then(({ data }) => {
       const session = data?.session;
-      if (session?.user) _hydrateUser(session.user);
+      if (session?.user) {
+        // localStorage 세션 복구 (Google 직접 로그인)
+        const u = session.user;
+        if (u.sub || u.id) {
+          setSupaUser({ id: u.sub || u.id, email: u.email, name: u.name, plan: "Free", avatar: u.picture || u.avatar || null });
+          setLoading(false);
+          return;
+        }
+        _hydrateUser(session.user);
+      }
       setLoading(false);
     });
 
@@ -246,10 +314,13 @@ function useSupabaseAuth() {
   }
 
   async function signInWithGoogle() {
-    const { error, mock } = await Auth.signInWithGoogle();
-    if (mock) {
-      // Supabase 미연결 시 목 로그인
-      setSupaUser({ id: "mock", email: "demo@ssatis.app", name: "민지", plan: "Free", avatar: null });
+    const result = await Auth.signInWithGoogle();
+    const { error, googleUser } = result || {};
+
+    if (googleUser) {
+      const user = { id: googleUser.id, email: googleUser.email, name: googleUser.name, plan: "Free", avatar: googleUser.avatar };
+      localStorage.setItem('ssatis:session', JSON.stringify(googleUser));
+      setSupaUser(user);
     }
     if (error) showToast("로그인 실패: " + error.message, "error");
   }
