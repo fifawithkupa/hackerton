@@ -359,11 +359,13 @@ function useSupabaseAuth() {
   async function _hydrateUser(authUser) {
     // profiles 테이블에서 플랜 등 추가 정보 가져오기
     const { data: profile } = await Profiles.get(authUser.id);
+    const adminEmails = (window.SSATIS_CONFIG || {}).adminEmails || [];
+    const isAdmin = adminEmails.includes(authUser.email);
     setSupaUser({
       id:     authUser.id,
       email:  authUser.email,
       name:   profile?.name  || authUser.user_metadata?.full_name || authUser.email.split("@")[0],
-      plan:   profile?.plan  || "Free",
+      plan:   isAdmin ? "Admin" : (profile?.plan || "Free"),
       avatar: authUser.user_metadata?.avatar_url || null,
     });
   }
