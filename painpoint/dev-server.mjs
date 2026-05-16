@@ -88,6 +88,14 @@ function loadYoutubeKey() {
   return process.env.YOUTUBE_API_KEY?.trim() || null;
 }
 
+function loadTossSecretKey() {
+  return process.env.TOSS_SECRET_KEY?.trim() || "test_sk_DnyRpQWGrND0DwggYggL3Kwv1M9E";
+}
+
+function loadTossClientKey() {
+  return process.env.TOSS_CLIENT_KEY?.trim() || "test_ck_24xLea5zVAzBA06wlZ5KrQAMYNwW";
+}
+
 let GEMINI_MODEL = resolveGeminiModel();
 
 // ── 유틸 ──────────────────────────────────────────────────────────────────────
@@ -313,12 +321,57 @@ const server = http.createServer(async (req, res) => {
         model: resolveGeminiModel(),
         keyLoaded: Boolean(loadGeminiKey()),
         youtubeKeyLoaded: Boolean(loadYoutubeKey()),
+        tossClientKey: loadTossClientKey(),
       }),
     );
     return;
   }
 
   const pathname = req.url.split("?")[0];
+
+  // ── POST /api/toss/confirm — 토스페이먼츠 결제 승인 ──────────────────────────
+  if (req.method === "POST" && pathname === "/api/toss/confirm") {
+    try {
+      const body = await readBody(req);
+      const { paymentKey, orderId, amount } = body;
+      if (!paymentKey || !orderId || !amount) {
+        send(res, 400, JSON.stringify({ error: "paymentKey, orderId, amount 필수" }));
+        return;
+      }
+      const secretKey = loadTossSecretKey();
+      const auth = Buffer.from(`${secretKey}:`).toString("base64");
+      const tossRes = await fetch("https://api.tosspayments.com/v1/payments/confirm", {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paymentKey, orderId, amount: Number(amount) }),
+      });
+      const tossData = await tossRes.json();
+      if (!tossRes.ok) {
+        console.error("[toss/confirm] 실패:", tossData);
+        send(res, 400, JSON.stringify({ error: tossData.message || "결제 승인 실패" }));
+        return;
+      }
+      console.log(`[toss/confirm] 성공: orderId=${orderId} amount=${amount}`);
+      send(res, 200, JSON.stringify({ success: true, payment: tossData }));
+    } catch (e) {
+      console.error("[toss/confirm]", e);
+      send(res, 500, JSON.stringify({ error: String(e.message || e) }));
+    }
+    return;
+  }
+
+  // ── /payment/* — SPA 결제 콜백 라우팅 (index.html 서빙) ─────────────────────
+  if (req.method === "GET" && (pathname === "/payment/success" || pathname === "/payment/fail")) {
+    const indexPath = path.join(ROOT, "index.html");
+    fs.readFile(indexPath, (err, data) => {
+      if (err) { send(res, 500, "Read Error", "text/plain; charset=utf-8"); return; }
+      send(res, 200, data, "text/html; charset=utf-8");
+    });
+    return;
+  }
 
   // ── GET /api/search ─────────────────────────────────────────────────────────
   if (req.method === "GET" && pathname === "/api/search") {
