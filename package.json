@@ -3,6 +3,13 @@
   "private": true,
   "scripts": {
     "dev:ssatis": "node painpoint/dev-server.mjs",
-    "restore:analyzing": "node painpoint/scripts/restore-analyzing.mjs"
+    "restore:analyzing": "node painpoint/scripts/restore-analyzing.mjs",
+    "seed:yc-companies": "node painpoint/scripts/seed-yc-companies.mjs",
+    "seed:yc-rfs": "node painpoint/scripts/seed-yc-rfs.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.105.4",
+    "cheerio": "^1.2.0",
+    "google-trends-api": "^4.9.2"
   }
 }
