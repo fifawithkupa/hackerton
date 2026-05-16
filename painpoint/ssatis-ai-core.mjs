@@ -20,7 +20,13 @@ export const DEFAULT_ANALYSIS_LOG = [
 export function buildPostDigest(posts) {
   return posts
     .slice(0, 45)
-    .map((p, i) => `[${i + 1}] (${p.source || "mixed"}) ${p.text}`)
+    .map((p, i) => {
+      const text =
+        (typeof p.text === "string" && p.text.trim()) ||
+        [p.title, p.selftext].filter(Boolean).join(" — ");
+      return `[${i + 1}] (${p.source || "mixed"}) ${text}`;
+    })
+    .filter((line) => !line.endsWith(") ") && !line.endsWith(") undefined"))
     .join("\n");
 }
 

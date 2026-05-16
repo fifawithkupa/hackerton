@@ -18,7 +18,9 @@
 
       t !== "YOUR_GEMINI_API_KEY" &&
 
-      t !== "YOUR_OPENAI_API_KEY"
+      t !== "YOUR_OPENAI_API_KEY" &&
+
+      t !== "via-dev-server-env"
 
     );
 
@@ -52,7 +54,15 @@
 
     if (!window.hasOpenAiConfigured()) return null;
 
-
+    const health =
+      typeof window.checkAnalysisServer === "function"
+        ? await window.checkAnalysisServer()
+        : { ok: true, keyLoaded: true };
+    if (!health.ok || !health.keyLoaded) {
+      throw new Error(
+        "서버에 Gemini API 키가 없습니다. Vercel → Settings → Environment Variables에 GEMINI_API_KEY를 추가한 뒤 재배포하세요.",
+      );
+    }
 
     const posts =
       (Array.isArray(window._ssatisCollectedPosts) && window._ssatisCollectedPosts.length
@@ -226,7 +236,7 @@
       if (!r.ok) return { ok: false, reason: "health_failed" };
       const j = await r.json();
       if (j.provider !== "gemini") return { ok: false, reason: "old_server" };
-      return { ok: true, model: j.model };
+      return { ok: true, model: j.model, keyLoaded: Boolean(j.keyLoaded) };
     } catch {
       return { ok: false, reason: "offline" };
     }

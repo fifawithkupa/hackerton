@@ -19,6 +19,8 @@
 
   <!-- Supabase JS v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- 배포 환경: Vercel env → /api/public-config 병합 후 Supabase 초기화 -->
+  <script src="bootstrap-config.js"></script>
 
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async></script>
@@ -33,20 +35,6 @@
 </head>
 <body>
   <div id="app"></div>
-
-  <!-- Supabase 클라이언트 초기화 -->
-  <script>
-    (function () {
-      const cfg = window.SSATIS_CONFIG || {};
-      if (cfg.supabaseUrl && cfg.supabaseUrl !== "YOUR_SUPABASE_URL") {
-        window.supabaseClient = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-        console.log("[SSATIS] Supabase 연결됨:", cfg.supabaseUrl);
-      } else {
-        console.warn("[SSATIS] config.js에 Supabase 설정이 없습니다. 목 데이터로 실행합니다.");
-        window.supabaseClient = null;
-      }
-    })();
-  </script>
 
   <script src="data.js"></script>
   <script src="gptAnalysis.js"></script>

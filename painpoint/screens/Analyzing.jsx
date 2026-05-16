@@ -14,7 +14,7 @@ function ppSleep(ms) {
 
 function Analyzing({ params, onFinish, onCancel }) {
   const fallbackLog = window.PP_DATA?.result?.log || [];
-  const useAi =
+  const clientAiConfigured =
     typeof window.hasOpenAiConfigured === "function" && window.hasOpenAiConfigured();
 
   const [elapsed, setElapsed] = React.useState(0);
@@ -81,24 +81,32 @@ function Analyzing({ params, onFinish, onCancel }) {
         if (cancelled) return;
         setStepIdx(3);
 
-        if (useAi) {
-          const health =
-            typeof window.checkAnalysisServer === "function"
-              ? await window.checkAnalysisServer()
-              : { ok: true };
-          if (!health.ok && !cancelled) {
-            if (health.reason === "old_server" || health.reason === "health_failed") {
-              showToast(
-                "분석 서버가 옛 버전입니다. node painpoint/dev-server.mjs 를 다시 실행하세요.",
-                "default",
-              );
-            } else if (health.reason === "offline") {
-              showToast(
-                "분석 서버에 연결할 수 없습니다. node painpoint/dev-server.mjs 실행 후 8787 포트로 접속하세요.",
-                "default",
-              );
-            }
+        const health =
+          typeof window.checkAnalysisServer === "function"
+            ? await window.checkAnalysisServer()
+            : { ok: true, keyLoaded: clientAiConfigured };
+        const useAi = clientAiConfigured && health.ok && health.keyLoaded;
+
+        if (clientAiConfigured && !useAi && !cancelled) {
+          if (health.reason === "old_server" || health.reason === "health_failed") {
+            showToast(
+              "분석 API가 응답하지 않습니다. Vercel 배포 시 GEMINI_API_KEY 환경변수를 확인하세요.",
+              "default",
+            );
+          } else if (health.reason === "offline") {
+            showToast(
+              "분석 API에 연결할 수 없습니다. 배포 URL에서 /api/ssatis-health 를 확인하세요.",
+              "default",
+            );
+          } else if (!health.keyLoaded) {
+            showToast(
+              "서버에 Gemini 키가 없습니다. Vercel Settings → Environment Variables에 GEMINI_API_KEY를 추가하세요.",
+              "default",
+            );
           }
+        }
+
+        if (useAi) {
 
           await ppSleep(300);
           if (cancelled) return;
@@ -135,10 +143,10 @@ function Analyzing({ params, onFinish, onCancel }) {
         setError(e.message || String(e));
         showToast(
           (e.message || "수집 실패") +
-            " — dev-server(node painpoint/dev-server.mjs) 실행 여부를 확인하세요.",
+            " — /api/search 가 동작하는지, Vercel Functions 로그를 확인하세요.",
           "default",
         );
-        if (useAi) {
+        if (clientAiConfigured) {
           try {
             setStepIdx(4);
             const result = await window.runPainpointAnalysis(
@@ -166,7 +174,7 @@ function Analyzing({ params, onFinish, onCancel }) {
     return () => {
       cancelled = true;
     };
-  }, [params.keyword, params.sources, useAi, onFinish]);
+  }, [params.keyword, params.sources, clientAiConfigured, onFinish]);
 
   const totalCollected = collectDone
     ? postCount
