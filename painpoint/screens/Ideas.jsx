@@ -43,9 +43,9 @@ function IdeaCard({ idea, painpoint, isOpen, onToggle, isSaved, onToggleSave, on
   return (
     <div className="pp-card" style={{ padding: 0, overflow: "hidden" }}>
       {/* HEAD */}
-      <button onClick={onToggle} style={{
-        all: "unset", cursor: "pointer", display: "block", width: "100%",
-        padding: 28,
+      <div onClick={onToggle} style={{
+        cursor: "pointer", display: "block", width: "100%",
+        padding: 28, boxSizing: "border-box",
       }}>
         <div style={{ display: "grid", gridTemplateColumns: "60px 1fr auto", gap: 24, alignItems: "start" }}>
           <div className="tnum" style={{
@@ -98,7 +98,7 @@ function IdeaCard({ idea, painpoint, isOpen, onToggle, isSaved, onToggleSave, on
             }}>⌄</span>
           </div>
         </div>
-      </button>
+      </div>
 
       {/* BODY */}
       {isOpen && (
