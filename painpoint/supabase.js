@@ -174,9 +174,13 @@ const Profiles = {
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
 
+// Supabase UUID 여부 확인 — Google sub(숫자)은 localStorage 사용
+const isSupaUUID = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+const useLocal = (userId) => !DB || !isSupaUUID(userId);
+
 const Reports = {
   async list(userId) {
-    if (!DB) {
+    if (useLocal(userId)) {
       const data = Local.get(userId, "reports")
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       return { data, error: null };
@@ -188,7 +192,7 @@ const Reports = {
   },
 
   async save(userId, reportData) {
-    if (!DB) {
+    if (useLocal(userId)) {
       const reports = Local.get(userId, "reports");
       const item = {
         id: "local-" + Date.now(),
@@ -207,34 +211,33 @@ const Reports = {
   },
 
   async toggleStar(reportId, starred) {
-    if (!DB) {
-      // 모든 유저의 reports를 순회해서 해당 id 업데이트
-      for (const key of Object.keys(localStorage)) {
-        if (!key.startsWith("ssatis:reports:")) continue;
-        const reports = JSON.parse(localStorage.getItem(key) || "[]");
-        const updated = reports.map(r => r.id === reportId ? { ...r, starred } : r);
-        localStorage.setItem(key, JSON.stringify(updated));
-      }
-      return { error: null };
+    for (const key of Object.keys(localStorage)) {
+      if (!key.startsWith("ssatis:reports:")) continue;
+      const reports = JSON.parse(localStorage.getItem(key) || "[]");
+      const updated = reports.map(r => r.id === reportId ? { ...r, starred } : r);
+      localStorage.setItem(key, JSON.stringify(updated));
     }
-    return DB.from("reports").update({ starred }).eq("id", reportId);
+    if (DB && !reportId.startsWith("local-")) {
+      return DB.from("reports").update({ starred }).eq("id", reportId);
+    }
+    return { error: null };
   },
 
   async updateShare(reportId, share) {
-    if (!DB) return { error: null };
+    if (!DB || reportId.startsWith("local-")) return { error: null };
     return DB.from("reports").update({ share }).eq("id", reportId);
   },
 
   async delete(reportId) {
-    if (!DB) {
-      for (const key of Object.keys(localStorage)) {
-        if (!key.startsWith("ssatis:reports:")) continue;
-        const reports = JSON.parse(localStorage.getItem(key) || "[]");
-        localStorage.setItem(key, JSON.stringify(reports.filter(r => r.id !== reportId)));
-      }
-      return { error: null };
+    for (const key of Object.keys(localStorage)) {
+      if (!key.startsWith("ssatis:reports:")) continue;
+      const reports = JSON.parse(localStorage.getItem(key) || "[]");
+      localStorage.setItem(key, JSON.stringify(reports.filter(r => r.id !== reportId)));
     }
-    return DB.from("reports").delete().eq("id", reportId);
+    if (DB && !reportId.startsWith("local-")) {
+      return DB.from("reports").delete().eq("id", reportId);
+    }
+    return { error: null };
   },
 };
 
