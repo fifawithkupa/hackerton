@@ -1,6 +1,9 @@
 # Supabase 키 (절대 커밋하지 마세요)
 painpoint/config.js
 
+# Dependencies
+node_modules/
+
 # OS
 .DS_Store
 Thumbs.db
