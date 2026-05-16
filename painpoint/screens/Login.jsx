@@ -2,12 +2,14 @@
 function Login({ onGoogleLogin, onBack }) {
   const [loading, setLoading] = React.useState(false);
   const [gisReady, setGisReady] = React.useState(false);
+  const [gisFailed, setGisFailed] = React.useState(false);
   const googleBtnRef = React.useRef(null);
+  const hasClientId = !!((window.SSATIS_CONFIG || {}).googleClientId);
 
   // GIS renderButton 초기화
   React.useEffect(() => {
     const clientId = (window.SSATIS_CONFIG || {}).googleClientId;
-    if (!clientId) return;
+    if (!clientId) { setGisFailed(true); return; }
 
     let initialized = false;
     const initGIS = () => {
@@ -19,7 +21,6 @@ function Login({ onGoogleLogin, onBack }) {
         callback: async (response) => {
           setLoading(true);
           try {
-            // JWT 디코드 (한글 이름 지원)
             const base64 = response.credential.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
             const p = JSON.parse(
               decodeURIComponent(
@@ -47,9 +48,12 @@ function Login({ onGoogleLogin, onBack }) {
     if (typeof google !== "undefined") {
       initGIS();
     } else {
+      let waited = 0;
       const timer = setInterval(() => {
+        waited += 200;
         if (typeof google !== "undefined") { clearInterval(timer); initGIS(); }
-      }, 100);
+        else if (waited >= 8000) { clearInterval(timer); setGisFailed(true); }
+      }, 200);
       return () => clearInterval(timer);
     }
   }, []);
@@ -138,10 +142,22 @@ function Login({ onGoogleLogin, onBack }) {
         </p>
 
         {/* GIS가 여기에 실제 Google 버튼을 주입 */}
-        <div ref={googleBtnRef} style={{ width: "100%", minHeight: 52 }} />
+        <div ref={googleBtnRef} style={{ width: "100%", minHeight: gisReady ? 52 : 0 }} />
 
-        {/* Google Client ID 없거나 GIS 로드 실패 시 폴백 버튼 */}
-        {(!((window.SSATIS_CONFIG || {}).googleClientId) || !gisReady) && (
+        {/* GIS 로드 전: 로딩 표시 */}
+        {hasClientId && !gisReady && !gisFailed && (
+          <div style={{
+            width: "100%", padding: "14px 20px",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            background: "#f8f9fa", border: "1.5px solid #dadce0", borderRadius: 8,
+            font: "500 14px/1 var(--font-base)", color: "#80868b",
+          }}>
+            Google 로그인 버튼 불러오는 중…
+          </div>
+        )}
+
+        {/* GIS 로드 실패 또는 Client ID 없을 때 폴백 */}
+        {(!hasClientId || gisFailed) && (
           <button
             onClick={async () => {
               setLoading(true);
