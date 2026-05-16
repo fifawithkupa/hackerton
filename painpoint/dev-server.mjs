@@ -38,7 +38,7 @@ import {
   normalizeAnalysisResult,
 } from "./ssatis-ai-core.mjs";
 import { buildCombinedPPData, normalizeCollectedPosts } from "./build-pp-data.mjs";
-import { loadGeminiKey, loadYoutubeKey, resolveGeminiModel } from "./server-config.mjs";
+import { loadGeminiKey, loadYoutubeKey, resolveGeminiModel, loadPublicClientConfig } from "./server-config.mjs";
 import { searchReddit } from "./reddit-search.mjs";
 import { searchNaver } from "./naver-search.mjs";
 import { searchYoutube } from "./youtube-search.mjs";
@@ -113,6 +113,12 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204, { "Access-Control-Allow-Origin": "*" });
     res.end();
+    return;
+  }
+
+  // ── /api/public-config ─────────────────────────────────────────────────────
+  if (req.method === "GET" && req.url.split("?")[0] === "/api/public-config") {
+    send(res, 200, JSON.stringify(loadPublicClientConfig()));
     return;
   }
 
@@ -224,7 +230,6 @@ const server = http.createServer(async (req, res) => {
 
       const { ppData, collectedPosts } = buildCombinedPPData(
         keyword,
-        redditPosts,
         naverPosts,
         youtubePosts,
       );
