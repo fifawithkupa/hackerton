@@ -1,5 +1,7 @@
 -- Pro Layer: Market Signals + YC Insights
--- pgvector already enabled. Gemini text-embedding-004 = 768 dims.
+-- Gemini text-embedding-004 = 768 dims.
+
+create extension if not exists vector;
 
 -- ── 1. pain_clusters ─────────────────────────────────────────────────────────
 -- 기존 분석 결과의 페인포인트 클러스터를 영속 저장
