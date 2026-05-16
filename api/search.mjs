@@ -1,4 +1,4 @@
-import { searchReddit } from "../painpoint/reddit-search.mjs";
+import { searchReddit, redditPostUrl } from "../painpoint/reddit-search.mjs";
 import { searchNaver } from "../painpoint/naver-search.mjs";
 import { searchYoutube } from "../painpoint/youtube-search.mjs";
 
@@ -23,7 +23,12 @@ function buildCombinedPPData(keyword, redditPosts, naverPosts, youtubePosts = []
   const groups = [interleaved.slice(0, 3), interleaved.slice(3, 6), interleaved.slice(6, 9)]
     .filter(g => g.length > 0);
 
-  const toSample = p => ({ src: p.source, title: p.title, up: p.score || 0, link: p.url });
+  const toSample = p => ({
+    src: p.source,
+    title: p.title,
+    up: p.score || 0,
+    link: p.source === "reddit" ? redditPostUrl(p) : (p.url || "#"),
+  });
 
   const painpoints = groups.map((group, i) => ({
     id: `pp${i + 1}`, rank: i + 1,
@@ -44,16 +49,18 @@ function buildCombinedPPData(keyword, redditPosts, naverPosts, youtubePosts = []
   const total = redditPosts.length + naverPosts.length + youtubePosts.length;
   const collectedPosts = interleaved.map(p => ({
     text: [p.title, p.selftext].filter(Boolean).join(" — ").slice(0, 500),
-    title: p.title, url: p.url, source: p.source,
+    title: p.title,
+    url: p.source === "reddit" ? redditPostUrl(p) : (p.url || "#"),
+    source: p.source,
     selftext: p.selftext || "", score: p.score || 0,
   }));
 
   const ppData = {
-    trendingKeywords: [{ kw: keyword, delta: "실시간", category: "Reddit+Naver" }],
+    trendingKeywords: [{ kw: keyword, delta: "실시간", category: "Reddit+Naver+YouTube" }],
     sources: [
-      { id: "reddit",  name: "레딧",   desc: `Reddit: "${keyword}"`,   posts: redditPosts.length,  defaultOn: true, free: true },
-      { id: "naver",   name: "네이버", desc: `Naver: "${keyword}"`,    posts: naverPosts.length,   defaultOn: true, free: true },
-      { id: "youtube", name: "유튜브", desc: `YouTube: "${keyword}"`,  posts: youtubePosts.length, defaultOn: true, free: true },
+      { id: "reddit",  name: "레딧",      desc: `Reddit: "${keyword}"`,   posts: redditPosts.length,  defaultOn: true, live: true, free: true },
+      { id: "naver",   name: "네이버",    desc: `Naver: "${keyword}"`,    posts: naverPosts.length,   defaultOn: true, live: true, free: true },
+      { id: "youtube", name: "유튜브 댓글", desc: `YouTube: "${keyword}"`, posts: youtubePosts.length, defaultOn: true, live: true, free: true },
     ],
     result: {
       keyword, analyzedAt: now,
