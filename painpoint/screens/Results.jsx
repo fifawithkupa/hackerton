@@ -2,8 +2,12 @@
 function Results({ params, analysisResult, existingReportId, user, onBack }) {
   const fallback = window.PP_DATA.result;
   const D = React.useMemo(() => {
-    if (analysisResult) return analysisResult;
-    return { ...fallback, keyword: params.keyword || fallback.keyword };
+    if (!analysisResult) return { ...fallback, keyword: params.keyword || fallback.keyword };
+    // Gemini 결과에 ideas가 없으면 fallback 아이디어 주입
+    if (!analysisResult.ideas?.length && fallback.ideas?.length) {
+      return { ...analysisResult, ideas: fallback.ideas };
+    }
+    return analysisResult;
   }, [analysisResult, params.keyword]);
 
   const [tab, setTab] = React.useState("painpoints");
