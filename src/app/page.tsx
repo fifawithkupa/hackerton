@@ -1,10 +1,6 @@
+import { redirect } from "next/navigation";
+
+/** SSATIS 메인 UI는 painpoint/ 정적 앱에서 제공됩니다. */
 export default function HomePage() {
-  return (
-    <main style={{ padding: "2rem", fontFamily: "system-ui, sans-serif" }}>
-      <h1>SSATIS API</h1>
-      <p>
-        분석 API: <code>POST /api/analyze</code>
-      </p>
-    </main>
-  );
+  redirect("/painpoint/index.html");
 }

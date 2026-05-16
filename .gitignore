@@ -1,6 +1,8 @@
 # Supabase 키 (절대 커밋하지 마세요)
 painpoint/config.js
 painpoint/.env
+public/painpoint/config.js
+public/painpoint/.env
 .env
 
 # Dependencies

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>SSATIS — 실제 불만에서 창업 아이디어를 발견하다</title>
+  <meta name="viewport" content="width=1280" />
+  <meta name="description" content="실시간 커뮤니티 데이터에서 검증된 페인포인트를 발견하고, 실행 가능한 창업 아이디어를 얻으세요." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard-jp.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css" />
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- 앱 설정 (Supabase URL / key) -->
+  <script src="config.js"></script>
+
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+  <!-- React 18 + Babel -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Supabase 클라이언트 초기화 -->
+  <script>
+    (function () {
+      const cfg = window.SSATIS_CONFIG || {};
+      if (cfg.supabaseUrl && cfg.supabaseUrl !== "YOUR_SUPABASE_URL") {
+        window.supabaseClient = supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+        console.log("[SSATIS] Supabase 연결됨:", cfg.supabaseUrl);
+      } else {
+        console.warn("[SSATIS] config.js에 Supabase 설정이 없습니다. 목 데이터로 실행합니다.");
+        window.supabaseClient = null;
+      }
+    })();
+  </script>
+
+  <script src="data.js"></script>
+  <script type="text/babel" src="supabase.js"></script>
+  <script type="text/babel" src="components.jsx"></script>
+  <script type="text/babel" src="screens/Landing.jsx"></script>
+  <script type="text/babel" src="screens/Analyzing.jsx"></script>
+  <script type="text/babel" src="screens/Painpoints.jsx"></script>
+  <script type="text/babel" src="screens/Ideas.jsx"></script>
+  <script type="text/babel" src="screens/Competitors.jsx"></script>
+  <script type="text/babel" src="screens/Report.jsx"></script>
+  <script type="text/babel" src="screens/Results.jsx"></script>
+  <script type="text/babel" src="screens/Login.jsx"></script>
+  <script type="text/babel" src="screens/Dashboard.jsx"></script>
+  <script type="text/babel" src="screens/Trends.jsx"></script>
+  <script type="text/babel" src="screens/Pricing.jsx"></script>
+  <script type="text/babel" src="screens/Account.jsx"></script>
+  <script type="text/babel" src="screens/SavedIdeas.jsx"></script>
+  <script type="text/babel" src="screens/Empty.jsx"></script>
+  <script type="text/babel" src="app.jsx"></script>
+</body>
+</html>
