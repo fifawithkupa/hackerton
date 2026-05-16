@@ -9,11 +9,11 @@ const ANALYZE_STEPS = [
 ];
 
 function Analyzing({ params, onDone, onCancel }) {
-  const D = window.PP_DATA;
-  const log = D.result.log;
-  const [elapsed, setElapsed] = React.useState(0);
-  const [stepIdx, setStepIdx] = React.useState(0);
-  const [logIdx, setLogIdx]  = React.useState(0);
+  const [elapsed, setElapsed]   = React.useState(0);
+  const [stepIdx, setStepIdx]   = React.useState(0);
+  const [fetched, setFetched]   = React.useState(false);
+  const [postCount, setPostCount] = React.useState(0);
+  const [error, setError]       = React.useState(null);
 
   // tick
   React.useEffect(() => {
@@ -21,30 +21,42 @@ function Analyzing({ params, onDone, onCancel }) {
     return () => clearInterval(t);
   }, []);
 
-  // step progression
+  // step progression (애니메이션)
   React.useEffect(() => {
-    const ms = [600, 900, 1400, 1700, 2400, 2900, 3400];
+    const ms = [400, 800, 1200, 1600, 2000, 2400];
     const timers = ANALYZE_STEPS.map((_, i) =>
-      setTimeout(() => setStepIdx(i + 1), ms[i] || 4000)
+      setTimeout(() => setStepIdx(i + 1), ms[i] || 3000)
     );
     return () => timers.forEach(clearTimeout);
   }, []);
 
-  // log progression
+  // 실제 Reddit 크롤링 API 호출
   React.useEffect(() => {
-    const timers = log.map((entry, i) =>
-      setTimeout(() => setLogIdx(i + 1), entry.d * 1000)
-    );
-    return () => timers.forEach(clearTimeout);
-  }, []);
+    const controller = new AbortController();
+    fetch(`/api/search?q=${encodeURIComponent(params.keyword)}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) throw new Error(data.error);
+        window.PP_DATA = data;
+        setPostCount(data.result.totalCollected);
+        setFetched(true);
+      })
+      .catch(e => {
+        if (e.name !== 'AbortError') setError(e.message);
+      });
+    return () => controller.abort();
+  }, [params.keyword]);
 
-  // finish
+  // fetch 완료 + 최소 2.5초 애니메이션 후 이동
   React.useEffect(() => {
-    const id = setTimeout(onDone, 4200);
+    if (!fetched) return;
+    const delay = Math.max(0, 2500 - elapsed * 1000);
+    const id = setTimeout(onDone, delay);
     return () => clearTimeout(id);
-  }, []);
+  }, [fetched]);
 
-  const totalCollected = log.slice(0, logIdx).reduce((a, b) => a + b.n, 0);
+  const log = window.PP_DATA?.result?.log || [];
+  const totalCollected = fetched ? postCount : Math.floor(elapsed * 8);
 
   return (
     <main className="fade-in" style={{
@@ -191,20 +203,12 @@ function Analyzing({ params, onDone, onCancel }) {
               borderTop: "1px solid rgba(255,255,255,0.1)",
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16,
             }}>
-              {log.slice(0, 3).map(l => (
-                <div key={l.src}>
-                  <div style={{
-                    font: "500 11px/1 var(--font-base)",
-                    color: "rgba(255,255,255,0.5)",
-                    marginBottom: 4,
-                  }}>{l.src}</div>
-                  <div className="tnum" style={{
-                    font: "700 16px/1 var(--font-base)",
-                  }}>
-                    {logIdx > log.indexOf(l) ? l.n.toLocaleString() : "—"}
-                  </div>
+              <div>
+                <div style={{ font: "500 11px/1 var(--font-base)", color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>레딧</div>
+                <div className="tnum" style={{ font: "700 16px/1 var(--font-base)" }}>
+                  {fetched ? postCount.toLocaleString() : "—"}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
 
@@ -213,21 +217,25 @@ function Analyzing({ params, onDone, onCancel }) {
             <div style={{ marginBottom: 8, color: "var(--pp-ink-dim)" }}>
               $ painpoint collect --keyword "{params.keyword}"
             </div>
-            {log.slice(0, logIdx).map((l, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            {error && (
+              <div style={{ color: "var(--pp-pain)", marginTop: 8 }}>
+                ✗ 오류: {error}
+              </div>
+            )}
+            {fetched ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span className="ok">✓</span>
-                <SourceGlyph id={l.id} size={14} />
-                <span className="src">{l.src}</span>
-                <span>— {l.t} →</span>
-                <span className="num">{l.n}</span>
+                <SourceGlyph id="reddit" size={14} />
+                <span className="src">레딧</span>
+                <span>— Reddit 검색: "{params.keyword}" →</span>
+                <span className="num">{postCount}</span>
                 <span>posts</span>
               </div>
-            ))}
-            {logIdx < log.length && (
+            ) : (
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span style={{ color: "var(--pp-pain)" }}>›</span>
-                <SourceGlyph id={log[logIdx]?.id} size={14} />
-                <span>{log[logIdx]?.src} — 연결 중</span>
+                <SourceGlyph id="reddit" size={14} />
+                <span>레딧 — "{params.keyword}" 검색 중</span>
                 <span style={{ marginLeft: 4, animation: "pulse 1s ease-out infinite" }}>▌</span>
               </div>
             )}

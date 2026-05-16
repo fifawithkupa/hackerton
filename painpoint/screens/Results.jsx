@@ -2,7 +2,7 @@
 function Results({ params, user, onBack }) {
   const D = window.PP_DATA.result;
   const [tab, setTab] = React.useState("painpoints");
-  const [selectedIdea, setSelectedIdea] = React.useState(D.ideas[0].id);
+  const [selectedIdea, setSelectedIdea] = React.useState(D.ideas[0]?.id || null);
   const [savedIdeas, setSavedIdeas] = React.useState({});
   const [reportSaved, setReportSaved] = React.useState(false);
   const [dbReportId, setDbReportId] = React.useState(null);
@@ -51,11 +51,14 @@ function Results({ params, user, onBack }) {
     setTimeout(() => window.print(), 300);
   };
 
+  const hasIdeas = D.ideas.length > 0;
   const tabs = [
-    { id: "painpoints",   label: "페인포인트",      count: D.painpoints.length },
-    { id: "ideas",        label: "아이디어",        count: D.ideas.length },
-    { id: "competitors",  label: "경쟁자·차별점",  count: D.ideas.reduce((a, i) => a + i.competitors.length, 0) },
-    { id: "report",       label: "리포트" },
+    { id: "painpoints",  label: "페인포인트",     count: D.painpoints.length },
+    ...(hasIdeas ? [
+      { id: "ideas",       label: "아이디어",       count: D.ideas.length },
+      { id: "competitors", label: "경쟁자·차별점", count: D.ideas.reduce((a, i) => a + i.competitors.length, 0) },
+    ] : []),
+    { id: "report",      label: "리포트" },
   ];
 
   return (
