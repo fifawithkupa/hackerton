@@ -13,6 +13,6 @@ window.SSATIS_CONFIG = {
   googleClientId: "",
   geminiApiKey: "via-dev-server-env",
   openaiApiKey: "",
-  geminiModel: "gemini-2.5-flash-preview-05-20",
+  geminiModel: "gemini-2.5-flash",
   analysisApiBase: "",
 };
