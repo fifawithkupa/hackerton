@@ -44,17 +44,20 @@ export type IdeaCard = {
   marketPotentialScore: number;
 };
 
+/** Structured SSATIS analysis payload (provider-agnostic). */
+export type SsatisAnalysisResult = {
+  keyword: string;
+  analyzedPostCount: number;
+  painClusters: PainCluster[];
+  ideaCards: IdeaCard[];
+  executiveSummary: string;
+};
+
 export type SaveAnalysisResultInput = {
   keyword: string;
   platforms?: string[];
   posts: PainPost[];
-  analysis: {
-    keyword: string;
-    analyzedPostCount: number;
-    painClusters: PainCluster[];
-    ideaCards: IdeaCard[];
-    executiveSummary: string;
-  };
+  analysis: SsatisAnalysisResult;
 };
 
 export type SaveAnalysisResultOutput = {
@@ -67,7 +70,7 @@ function throwInsertError(table: string, error: PostgrestError): never {
   const details = error.details ? ` — ${error.details}` : "";
   const hint = error.hint ? ` Hint: ${error.hint}` : "";
   throw new Error(
-    `Failed to save analysis (${table}): ${error.message} [${error.code}]${details}${hint}`,
+    `Failed to persist SSATIS analysis (${table}): ${error.message} [${error.code}]${details}${hint}`,
   );
 }
 
@@ -82,15 +85,16 @@ function resolveClusterId(
   linkedPainClusterIds: string[],
   clusterIdByAiId: Map<string, string>,
 ): string | null {
-  for (const aiClusterId of linkedPainClusterIds) {
-    const dbId = clusterIdByAiId.get(aiClusterId);
+  for (const clusterKey of linkedPainClusterIds) {
+    const dbId = clusterIdByAiId.get(clusterKey);
     if (dbId) return dbId;
   }
   return null;
 }
 
 /**
- * Persists a full SSATIS analysis run to Supabase (searches, posts, clusters, ideas, report).
+ * Persists a completed SSATIS analysis to Supabase.
+ * Accepts any provider's structured analysis object (clusters, ideas, summary).
  */
 export async function saveAnalysisResult(
   input: SaveAnalysisResultInput,
@@ -112,7 +116,9 @@ export async function saveAnalysisResult(
 
   if (searchError) throwInsertError("searches", searchError);
   if (!searchRow?.id) {
-    throw new Error("Failed to save analysis (searches): insert succeeded but no id was returned.");
+    throw new Error(
+      "Failed to persist SSATIS analysis (searches): insert succeeded but no id was returned.",
+    );
   }
 
   const searchId = searchRow.id;
@@ -162,7 +168,7 @@ export async function saveAnalysisResult(
     if (clustersError) throwInsertError("pain_clusters", clustersError);
     if (!insertedClusters?.length) {
       throw new Error(
-        "Failed to save analysis (pain_clusters): insert succeeded but no rows were returned.",
+        "Failed to persist SSATIS analysis (pain_clusters): insert succeeded but no rows were returned.",
       );
     }
 
@@ -201,7 +207,9 @@ export async function saveAnalysisResult(
 
     if (ideasError) throwInsertError("ideas", ideasError);
     if (!insertedIdeas?.length) {
-      throw new Error("Failed to save analysis (ideas): insert succeeded but no rows were returned.");
+      throw new Error(
+        "Failed to persist SSATIS analysis (ideas): insert succeeded but no rows were returned.",
+      );
     }
 
     for (const row of insertedIdeas) {
@@ -213,7 +221,7 @@ export async function saveAnalysisResult(
     }
   }
 
-  const reportTitle = `${analysis.keyword} 페인포인트 분석 리포트`;
+  const reportTitle = `SSATIS ${analysis.keyword} 페인포인트 분석 리포트`;
 
   const { data: reportRow, error: reportError } = await supabase
     .from("reports")
@@ -228,7 +236,9 @@ export async function saveAnalysisResult(
 
   if (reportError) throwInsertError("reports", reportError);
   if (!reportRow?.id) {
-    throw new Error("Failed to save analysis (reports): insert succeeded but no id was returned.");
+    throw new Error(
+      "Failed to persist SSATIS analysis (reports): insert succeeded but no id was returned.",
+    );
   }
 
   return {
@@ -237,3 +247,6 @@ export async function saveAnalysisResult(
     savedIdeas,
   };
 }
+
+/** Alias used by API routes — same provider-agnostic persistence. */
+export const saveAnalysisResultToSupabase = saveAnalysisResult;
