@@ -375,16 +375,18 @@ function useSupabaseAuth() {
   async function _hydrateUser(authUser) {
     // profiles 테이블에서 플랜 등 추가 정보 가져오기
     const { data: profile } = await Profiles.get(authUser.id);
+    const adminEmails = (window.SSATIS_CONFIG || {}).adminEmails || [];
+    const isAdmin = adminEmails.includes(authUser.email);
     const name = profile?.name || authUser.user_metadata?.full_name || authUser.email?.split("@")[0] || "사용자";
     // profile이 없으면 생성 (reports FK 제약 충족)
     if (!profile && DB()) {
-      await Profiles.upsert({ id: authUser.id, email: authUser.email, name, plan: "Free" });
+      await Profiles.upsert({ id: authUser.id, email: authUser.email, name, plan: isAdmin ? "Admin" : "Free" });
     }
     setSupaUser({
       id:     authUser.id,
       email:  authUser.email,
       name,
-      plan:   profile?.plan  || "Free",
+      plan:   isAdmin ? "Admin" : (profile?.plan || "Free"),
       avatar: authUser.user_metadata?.avatar_url || null,
     });
   }

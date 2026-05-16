@@ -123,7 +123,7 @@ function BillingSection({ user, onUpgrade, onNav }) {
       <SectionCard title="현재 플랜">
         <div style={{
           padding: 24,
-          background: user.plan === "Free" ? "var(--pp-surface-soft)" : "var(--color-label-strong)",
+          background: user.plan === "Free" ? "var(--pp-surface-soft)" : user.plan === "Admin" ? "#1a1a2e" : "var(--color-label-strong)",
           color: user.plan === "Free" ? "var(--pp-ink)" : "#fff",
           borderRadius: 16,
           display: "flex", alignItems: "center", gap: 24,
@@ -133,7 +133,7 @@ function BillingSection({ user, onUpgrade, onNav }) {
               font: "700 11px/1 var(--font-base)",
               letterSpacing: "0.08em", textTransform: "uppercase",
               opacity: 0.6, marginBottom: 6,
-            }}>{user.plan === "Free" ? "무료 사용 중" : "활성 구독"}</div>
+            }}>{user.plan === "Free" ? "무료 사용 중" : user.plan === "Admin" ? "관리자 계정" : "활성 구독"}</div>
             <div style={{
               font: "800 28px/1.1 var(--font-display)",
               letterSpacing: "-0.02em",
@@ -142,7 +142,7 @@ function BillingSection({ user, onUpgrade, onNav }) {
               marginTop: 6,
               font: "500 13px/1.4 var(--font-base)", opacity: 0.7,
             }}>
-              {user.plan === "Free" ? "월 리포트 3건 · Reddit 소스만" : "월 ₩29,000 · 다음 결제일 2025-12-14"}
+              {user.plan === "Free" ? "월 리포트 3건 · Reddit 소스만" : user.plan === "Admin" ? "모든 기능 무제한 · 결제 없음" : "월 ₩29,000 · 다음 결제일 2025-12-14"}
             </div>
           </div>
           {user.plan === "Free"

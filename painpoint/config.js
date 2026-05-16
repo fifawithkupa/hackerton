@@ -1,18 +1,18 @@
-// SSATIS 로컬 설정 — .gitignore 에 포함 (커밋되지 않음)
+// SSATIS 공개 설정 — 민감한 키는 Vercel 환경변수로 관리
+// Supabase / Google 키는 Vercel 환경변수(SUPABASE_URL, SUPABASE_ANON_KEY, GOOGLE_CLIENT_ID)에서 자동 주입됩니다.
 
 window.SSATIS_CONFIG = {
-  // Supabase
-  supabaseUrl: "https://xsvgfadxctgatdpsmggi.supabase.co",
-  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhzdmdmYWR4Y3RnYXRkcHNtZ2dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5MDI3MTEsImV4cCI6MjA5NDQ3ODcxMX0.7Xh5KB3_B3z4OVFf5-_kVezq2zyTuTjqPzo8HvAZa9k",
+  // Admin 이메일 목록 — 로그인 시 자동으로 "Admin" 플랜 부여 (모든 Pro 기능 해제)
+  adminEmails: [
+    "suprjaymin@snu.ac.kr",
+  ],
 
-  // Google OAuth (선택)
-  googleClientId: "963626779949-56jj5fco9i72pi3fpsb8qdtp0u8sthmq.apps.googleusercontent.com",
-
-  // Gemini (Google AI Studio). 로컬: node painpoint/dev-server.mjs → http://localhost:8787/
+  // 로컬 개발 시 직접 채울 항목 (배포 환경에서는 환경변수 우선)
+  supabaseUrl: "",
+  supabaseAnonKey: "",
+  googleClientId: "",
   geminiApiKey: "via-dev-server-env",
   openaiApiKey: "",
-  geminiModel: "gemini-3-flash-preview",
-
-  // 다른 호스트 프록시만 쓸 때 (예: "http://127.0.0.1:8787")
+  geminiModel: "gemini-2.5-flash-preview-05-20",
   analysisApiBase: "",
 };
